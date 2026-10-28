@@ -1,0 +1,9 @@
+node_modules
+dist
+
+.vercel
+
+# dados sensíveis (ficam só na máquina local)
+.env
+scripts/base.xlsx
+scripts/seed.json
