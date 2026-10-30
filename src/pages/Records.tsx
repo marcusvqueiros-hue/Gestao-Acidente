@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Pencil, Plus, Search, Trash2, Upload, Users, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Pencil, Plus, Search, Trash2, Upload, Users, X } from "lucide-react";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { aplicar, useFiltros } from "../lib/filters";
@@ -86,18 +86,30 @@ export default function Records() {
   const [categoria, setCategoria] = useState<Registro["categoria"]>("acidente");
   const [q, setQ] = useState("");
   const [pagina, setPagina] = useState(0);
+  const [fAno, setFAno] = useState("");
+  const [fGer, setFGer] = useState("");
+  const [fBase, setFBase] = useState("");
+  const [maisRecente, setMaisRecente] = useState(true);
   const [sel, setSel] = useState<Registro | null>(null);
   const [form, setForm] = useState<{ inicial?: Registro } | null>(null);
   const [toast, setToast] = useState("");
   const file = useRef<HTMLInputElement>(null);
   const fileEq = useRef<HTMLInputElement>(null);
 
+  const daCategoria = useMemo(() => aplicar(data.registros.filter((r) => r.categoria === categoria), filtros), [data, categoria, filtros]);
+  const opcoes = useMemo(() => {
+    const unicos = (f: (r: Registro) => string) => [...new Set(daCategoria.map(f).filter(Boolean))];
+    return { anos: unicos((r) => r.data.slice(0, 4)).sort().reverse(), gerencias: unicos((r) => r.processo).sort(), bases: unicos((r) => r.base).sort() };
+  }, [daCategoria]);
+  const temFiltro = !!(fAno || fGer || fBase);
+
   const lista = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return aplicar(data.registros.filter((r) => r.categoria === categoria), filtros)
+    return daCategoria
+      .filter((r) => (!fAno || r.data.startsWith(fAno)) && (!fGer || r.processo === fGer) && (!fBase || r.base === fBase))
       .filter((r) => !t || [r.colaborador, r.prefixo, r.cidade, r.tipo, r.caracteristica, r.descricao, r.supervisor].join(" ").toLowerCase().includes(t))
-      .sort((a, b) => b.data.localeCompare(a.data));
-  }, [data, categoria, filtros, q]);
+      .sort((a, b) => (maisRecente ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)));
+  }, [daCategoria, q, fAno, fGer, fBase, maisRecente]);
 
   const paginas = Math.max(1, Math.ceil(lista.length / PAGE));
   const pg = Math.min(pagina, paginas - 1);
@@ -180,13 +192,29 @@ export default function Records() {
         <input ref={file} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ""; }} />
       </div>
 
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
+        <select className="select" value={fAno} onChange={(e) => { setFAno(e.target.value); setPagina(0); }} aria-label="Filtrar por ano">
+          <option value="">Ano: todos</option>
+          {opcoes.anos.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select className="select" value={fGer} onChange={(e) => { setFGer(e.target.value); setPagina(0); }} aria-label="Filtrar por gerência">
+          <option value="">Gerência: todas</option>
+          {opcoes.gerencias.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <select className="select" value={fBase} onChange={(e) => { setFBase(e.target.value); setPagina(0); }} aria-label="Filtrar por base">
+          <option value="">Base: todas</option>
+          {opcoes.bases.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        {temFiltro && <button className="btn" onClick={() => { setFAno(""); setFGer(""); setFBase(""); setPagina(0); }}><X size={15} /> Limpar filtros</button>}
+      </div>
+
       <Card>
         {lista.length ? (
           <>
             <div className="table-wrap table-scroll">
               <table>
                 <thead>
-                  <tr><th>Data</th><th>Colaborador / equipe</th><th>Gerência</th><th>Base</th><th>{categoria === "acidente" ? "Característica" : "Tipo"}</th><th>Lesão</th><th>Envolvidos</th></tr>
+                  <tr><th><button type="button" onClick={() => { setMaisRecente(!maisRecente); setPagina(0); }} title={maisRecente ? "Do mais recente para o mais antigo (clique para inverter)" : "Do mais antigo para o mais recente (clique para inverter)"} style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>Data {maisRecente ? <ArrowDown size={13} /> : <ArrowUp size={13} />}</button></th><th>Colaborador / equipe</th><th>Gerência</th><th>Base</th><th>{categoria === "acidente" ? "Característica" : "Tipo"}</th><th>Lesão</th><th>Envolvidos</th></tr>
                 </thead>
                 <tbody>
                   {visiveis.map((r) => (
