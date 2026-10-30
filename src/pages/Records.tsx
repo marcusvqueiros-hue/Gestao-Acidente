@@ -193,15 +193,15 @@ export default function Records() {
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
-        <select className="select" value={fAno} onChange={(e) => { setFAno(e.target.value); setPagina(0); }} aria-label="Filtrar por ano">
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={fAno} onChange={(e) => { setFAno(e.target.value); setPagina(0); }} aria-label="Filtrar por ano">
           <option value="">Ano: todos</option>
           {opcoes.anos.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select className="select" value={fGer} onChange={(e) => { setFGer(e.target.value); setPagina(0); }} aria-label="Filtrar por gerência">
+        <select className="select" style={{ width: "auto", minWidth: 170 }} value={fGer} onChange={(e) => { setFGer(e.target.value); setPagina(0); }} aria-label="Filtrar por gerência">
           <option value="">Gerência: todas</option>
           {opcoes.gerencias.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
-        <select className="select" value={fBase} onChange={(e) => { setFBase(e.target.value); setPagina(0); }} aria-label="Filtrar por base">
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={fBase} onChange={(e) => { setFBase(e.target.value); setPagina(0); }} aria-label="Filtrar por base">
           <option value="">Base: todas</option>
           {opcoes.bases.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
