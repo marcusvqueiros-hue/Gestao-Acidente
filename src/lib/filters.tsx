@@ -53,6 +53,8 @@ interface Ctx {
   limparSelecoes: () => void;
   ativos: number;
   anosDisponiveis: number[];
+  /** anos com taxas (inclui os históricos que só têm taxas, sem registros) */
+  anosTaxas: number[];
 }
 
 const FCtx = createContext<Ctx>(null!);
@@ -87,10 +89,8 @@ export function aplicar(regs: Registro[], f: Filtros, opts: { ignorar?: ChaveFil
 
 export function FiltrosProvider({ children }: { children: ReactNode }) {
   const { data } = useData();
-  const anosDisponiveis = useMemo(
-    () => [...new Set([...data.registros.map(anoDe), ...data.taxas.map((t) => t.ano)])].sort(),
-    [data],
-  );
+  const anosDisponiveis = useMemo(() => [...new Set(data.registros.map(anoDe))].sort(), [data]);
+  const anosTaxas = useMemo(() => [...new Set([...data.registros.map(anoDe), ...data.taxas.map((t) => t.ano)])].sort(), [data]);
   const [filtros, setFiltros] = useState<Filtros>(() => ({
     ...VAZIO,
     anos: anosDisponiveis.length ? [anosDisponiveis[anosDisponiveis.length - 1]] : [],
@@ -122,14 +122,14 @@ export function FiltrosProvider({ children }: { children: ReactNode }) {
   const ativos = (Object.keys(VAZIO) as ChaveFiltro[]).reduce((s, k) => s + filtros[k].length, 0);
 
   return (
-    <FCtx.Provider value={{ filtros, toggle, limpar, limparSelecoes, ativos, anosDisponiveis }}>{children}</FCtx.Provider>
+    <FCtx.Provider value={{ filtros, toggle, limpar, limparSelecoes, ativos, anosDisponiveis, anosTaxas }}>{children}</FCtx.Provider>
   );
 }
 
 /** Fornece filtros fixos (sem interação): usado para gerar a "fotografia" do painel com um recorte específico. */
 export function FiltrosFixos({ filtros, children }: { filtros: Filtros; children: ReactNode }) {
   const valor = useMemo<Ctx>(
-    () => ({ filtros, toggle: () => {}, limpar: () => {}, limparSelecoes: () => {}, ativos: 0, anosDisponiveis: [] }),
+    () => ({ filtros, toggle: () => {}, limpar: () => {}, limparSelecoes: () => {}, ativos: 0, anosDisponiveis: [], anosTaxas: [] }),
     [filtros],
   );
   return <FCtx.Provider value={valor}>{children}</FCtx.Provider>;

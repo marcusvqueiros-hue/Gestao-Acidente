@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Calculator, TriangleAlert } from "lucide-react";
 import { useData } from "../lib/store";
@@ -85,10 +85,10 @@ function RateChart({ rows, campo, titulo, completo }: { rows: TaxaMes[]; campo: 
 function Calculo({ acumulado }: { acumulado: boolean }) {
   const { data, setExposicao, setConfig } = useData();
   const { admin } = useAuth();
-  const { anosDisponiveis, filtros } = useFiltros();
+  const { anosTaxas } = useFiltros();
   const hoje = new Date();
-  const anos = useMemo(() => [...new Set([...anosDisponiveis, hoje.getFullYear()])].sort(), [anosDisponiveis]);
-  const [ano, setAno] = useState(filtros.anos[0] ?? hoje.getFullYear());
+  const anos = useMemo(() => [...new Set([...anosTaxas, hoje.getFullYear()])].sort(), [anosTaxas]);
+  const [ano, setAno] = useState(hoje.getFullYear());
   const [padrao, setPadrao] = useState("");
   const [toast, setToast] = useState("");
   const cfg = data.config;
@@ -269,23 +269,43 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
 
 export default function Rates() {
   const { data } = useData();
-  const { filtros, anosDisponiveis } = useFiltros();
+  const { anosTaxas } = useFiltros();
+  const [anosSel, setAnosSel] = useState<number[]>([]);
+  const [mesesSel, setMesesSel] = useState<number[]>([]);
+  const iniciou = useRef(false);
+  useEffect(() => {
+    if (iniciou.current || !anosTaxas.length) return;
+    iniciou.current = true;
+    setAnosSel([anosTaxas[anosTaxas.length - 1]]);
+  }, [anosTaxas]);
   const [completo, setCompleto] = useState(false);
   const [acumulado, setAcumulado] = useState(true);
 
   const rows = useMemo(() => {
     const hoje = new Date();
-    const anos = filtros.anos.length ? filtros.anos : anosDisponiveis;
+    const anos = anosSel.length ? anosSel : anosTaxas;
     return anos
       .flatMap((a) => serieTaxas(data, a, acumulado))
-      .filter((t) => (!filtros.meses.length || filtros.meses.includes(t.mes)) && (t.ano < hoje.getFullYear() || (t.ano === hoje.getFullYear() && t.mes <= hoje.getMonth() + 1)))
+      .filter((t) => (!mesesSel.length || mesesSel.includes(t.mes)) && (t.ano < hoje.getFullYear() || (t.ano === hoje.getFullYear() && t.mes <= hoje.getMonth() + 1)))
       .sort((a, b) => a.ano - b.ano || a.mes - b.mes);
-  }, [data, filtros, anosDisponiveis, acumulado]);
+  }, [data, anosSel, mesesSel, anosTaxas, acumulado]);
+  const alterna = <T,>(lista: T[], v: T) => (lista.includes(v) ? lista.filter((x) => x !== v) : [...lista, v]);
 
   return (
     <>
       <div className="note">
-        As taxas são do grupo todo: os filtros de ano e mês se aplicam, base e gerência não. Meses futuros ficam ocultos.
+        As taxas são do grupo todo: valem os filtros de ano e mês desta página; base e gerência não se aplicam. Sem seleção, mostra todos os anos e meses. Meses futuros ficam ocultos.
+      </div>
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start", marginBottom: 14 }}>
+        <div className="fgroup">
+          <span>Ano</span>
+          <Chips options={anosTaxas} selected={anosSel} onToggle={(a) => setAnosSel(alterna(anosSel, a))} />
+        </div>
+        <div className="fgroup">
+          <span>Mês</span>
+          <Chips options={MESES.map((_, i) => i + 1)} selected={mesesSel} onToggle={(m) => setMesesSel(alterna(mesesSel, m))} label={(m) => MESES[m - 1]} />
+        </div>
+        {(anosSel.length > 0 || mesesSel.length > 0) && <button className="btn" onClick={() => { setAnosSel([]); setMesesSel([]); }}>Limpar</button>}
       </div>
       <div className="topbar" style={{ marginBottom: 14, gap: 10 }}>
         <div className="seg" role="group" aria-label="Período da taxa">
