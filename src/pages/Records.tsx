@@ -183,7 +183,7 @@ export default function Records() {
       <Card>
         {lista.length ? (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap table-scroll">
               <table>
                 <thead>
                   <tr><th>Data</th><th>Colaborador / equipe</th><th>Gerência</th><th>Base</th><th>{categoria === "acidente" ? "Característica" : "Tipo"}</th><th>Lesão</th><th>Envolvidos</th></tr>
