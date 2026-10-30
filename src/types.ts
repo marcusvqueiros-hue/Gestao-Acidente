@@ -108,6 +108,7 @@ export interface Dataset {
   taxas: Taxa[]; // taxas importadas da planilha (histórico), usadas quando não há horas-homem
   exposicao: Exposicao[];
   equipes: Equipe[];
+  colaboradores: Colaborador[];
   config: ConfigTaxas;
   atualizadoEm: string; // ISO
 }
@@ -119,4 +120,15 @@ export interface Equipe {
   gerencia: string; // código: GSTC, GOMAN...
   coordenador: string;
   gerente: string;
+}
+
+/** Quadro de colaboradores (planilha do QSMS): usado no autocomplete e para completar base/gerência. */
+export interface Colaborador {
+  chapa: string;
+  nome: string;
+  funcao: string;
+  base: string;
+  processo: string;
+  gerencia: string; // código: GOMAN, GSTC, GERE, ADM, ALMOX, FROTA, SESMT
+  situacao: string;
 }

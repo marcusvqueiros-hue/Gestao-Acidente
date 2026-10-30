@@ -6,6 +6,7 @@ import { turnoDaHora } from "../lib/parse";
 import { useTravaRolagem } from "./ui";
 import { useData } from "../lib/store";
 import { equipeDe, normPrefixo } from "../lib/equipes";
+import { colaboradorDe, normNome } from "../lib/colaboradores";
 
 const hoje = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 
@@ -58,7 +59,17 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
     };
     return { colab: ultimoDe("colaborador"), prefixo: ultimoDe("prefixo") };
   }, [data.registros]);
-  const nomesColab = useMemo(() => [...sugestoes.colab.keys()].sort((a, b) => a.localeCompare(b)), [sugestoes]);
+  const nomesColab = useMemo(() => {
+    const m = new Map<string, string>(); // nome sem acento -> nome exibido (quadro de colaboradores tem prioridade)
+    for (const c of data.colaboradores) m.set(normNome(c.nome), c.nome);
+    for (const k of sugestoes.colab.keys()) if (!m.has(normNome(k))) m.set(normNome(k), k);
+    return [...m.values()].sort((a, b) => a.localeCompare(b));
+  }, [sugestoes, data.colaboradores]);
+  // ao escolher alguém do quadro, base e gerência vêm do cadastro dele
+  const aplicarColaborador = (nome: string) => {
+    const c = colaboradorDe(nome);
+    if (c) setF((s) => ({ ...s, base: c.base || s.base, processo: c.gerencia || s.processo }));
+  };
   const nomesPrefixo = useMemo(() => [...new Set([...data.equipes.map((e) => normPrefixo(e.prefixo)), ...sugestoes.prefixo.keys()])].sort((a, b) => a.localeCompare(b)), [sugestoes, data.equipes]);
   // ao escolher uma equipe do cadastro, base e gerência vêm dela
   const aplicarEquipe = (p: string) => {
@@ -139,9 +150,9 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
 
         <div className="form-sec">Pessoas e local</div>
         <div className="form-grid">
-          <datalist id="lista-colaboradores">{nomesColab.map((n) => <option key={n} value={n} />)}</datalist>
+          <datalist id="lista-colaboradores">{nomesColab.map((n) => { const c = colaboradorDe(n); return <option key={n} value={n} label={c ? [c.funcao, c.base].filter(Boolean).join(" · ") : undefined} />; })}</datalist>
           <datalist id="lista-prefixos">{nomesPrefixo.map((n) => { const e = equipeDe(n); return <option key={n} value={n} label={e ? [e.base, e.gerencia, e.coordenador].filter(Boolean).join(" · ") : undefined} />; })}</datalist>
-          <div className="field"><label>Colaborador / equipe *</label><input className="input" list="lista-colaboradores" autoComplete="off" value={f.colaborador} onChange={(e) => { set("colaborador", e.target.value); completar(sugestoes.colab.get(e.target.value.trim().toUpperCase()), ["prefixo", "processo", "base", "cidade", "supervisor"]); }} />{err("colaborador")}</div>
+          <div className="field"><label>Colaborador / equipe *</label><input className="input" list="lista-colaboradores" autoComplete="off" value={f.colaborador} onChange={(e) => { set("colaborador", e.target.value); aplicarColaborador(e.target.value); completar(sugestoes.colab.get(e.target.value.trim().toUpperCase()), ["prefixo", "processo", "base", "cidade", "supervisor"]); }} />{colaboradorDe(f.colaborador) && <small className="hint">{[colaboradorDe(f.colaborador)!.funcao, "chapa " + colaboradorDe(f.colaborador)!.chapa, colaboradorDe(f.colaborador)!.situacao !== "ATIVO" ? colaboradorDe(f.colaborador)!.situacao : ""].filter(Boolean).join(" · ")}</small>}{err("colaborador")}</div>
           <div className="field"><label>Prefixo</label><input className="input" list="lista-prefixos" autoComplete="off" value={f.prefixo} onChange={(e) => { set("prefixo", e.target.value); aplicarEquipe(e.target.value); completar(sugestoes.prefixo.get(normPrefixo(e.target.value)), ["processo", "base", "cidade", "supervisor"]); }} placeholder="MA-PDS-V001M" />{equipeDe(f.prefixo) && <small className="hint">Equipe cadastrada: {[equipeDe(f.prefixo)!.base, equipeDe(f.prefixo)!.gerencia, "coord. " + equipeDe(f.prefixo)!.coordenador, "gerente " + equipeDe(f.prefixo)!.gerente].filter(Boolean).join(" · ")}</small>}</div>
           <div className="field"><label>Gerência *</label><select className="select" value={f.processo} onChange={(e) => set("processo", e.target.value)}><option value="">Selecione</option>{opts(GERENCIAS)}</select>{err("processo")}</div>
           <div className="field"><label>Base *</label><select className="select" value={f.base} onChange={(e) => set("base", e.target.value)}><option value="">Selecione</option>{opts(BASES)}</select>{err("base")}</div>

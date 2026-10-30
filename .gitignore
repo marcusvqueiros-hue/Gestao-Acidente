@@ -8,3 +8,4 @@ dist
 scripts/base.xlsx
 scripts/seed.json
 supabase/equipes-dados.sql
+supabase/colaboradores-dados.sql

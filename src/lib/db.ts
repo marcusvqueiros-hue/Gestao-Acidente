@@ -1,4 +1,4 @@
-import type { ConfigTaxas, Dataset, Equipe, Exposicao, Registro, Taxa } from "../types";
+import type { Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { supabase } from "./supabase";
 
@@ -92,12 +92,13 @@ async function opcional(tabela: string, ordem: string[]): Promise<Linha[]> {
 }
 
 export async function carregarDataset(): Promise<Dataset> {
-  const [regs, taxas, expo, conf, eq] = await Promise.all([
+  const [regs, taxas, expo, conf, eq, col] = await Promise.all([
     todas("registros", ["data", "id"]),
     todas("taxas", ["ano", "mes"]),
     opcional("exposicao", ["ano", "mes"]),
     opcional("configuracao", ["chave"]),
     opcional("equipes", ["prefixo"]),
+    opcional("colaboradores", ["nome"]),
   ]);
   const cfg = conf.find((c) => c.chave === "taxas")?.valor as Partial<ConfigTaxas> | undefined;
   const marcas = [...regs, ...taxas].map((l) => l.atualizado_em as string).filter(Boolean);
@@ -105,6 +106,7 @@ export async function carregarDataset(): Promise<Dataset> {
     registros: regs.map(deLinha),
     taxas: taxas.map(taxaDeLinha),
     equipes: eq.map((e) => ({ prefixo: e.prefixo, base: e.base ?? "", gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
+    colaboradores: col.map((c) => ({ chapa: c.chapa, nome: c.nome ?? "", funcao: c.funcao ?? "", base: c.base ?? "", processo: c.processo ?? "", gerencia: c.gerencia ?? "", situacao: c.situacao ?? "" })),
     exposicao: expo.map((e) => ({ ano: e.ano, mes: e.mes, horas: Number(e.horas) })),
     config: { ...CONFIG_PADRAO, ...(cfg ?? {}) },
     atualizadoEm: marcas.length ? marcas.reduce((a, b) => (a > b ? a : b)) : new Date().toISOString(),
@@ -166,6 +168,18 @@ export async function gravarEquipes(lista: Equipe[]): Promise<string | null> {
   if (r.error) return mensagem(r.error);
   for (let i = 0; i < lista.length; i += 300) {
     const { error } = await c.from("equipes").insert(lista.slice(i, i + 300));
+    if (error) return mensagem(error);
+  }
+  return null;
+}
+
+/** Substitui o quadro de colaboradores inteiro (importação da planilha). */
+export async function gravarColaboradores(lista: Colaborador[]): Promise<string | null> {
+  const c = db();
+  const r = await c.from("colaboradores").delete().neq("chapa", "");
+  if (r.error) return mensagem(r.error);
+  for (let i = 0; i < lista.length; i += 300) {
+    const { error } = await c.from("colaboradores").insert(lista.slice(i, i + 300));
     if (error) return mensagem(error);
   }
   return null;
