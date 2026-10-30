@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { ConfigTaxas, Dataset, Registro, Taxa } from "../types";
+import type { ConfigTaxas, Dataset, Equipe, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { useAuth } from "./auth";
 import { supabase } from "./supabase";
-import { apagarRegistro, carregarDataset, gravarConfig, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
+import { definirEquipes } from "./equipes";
+import { apagarRegistro, carregarDataset, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
 
 const KEY = "cgb.dataset.v1";
-const VAZIO = (): Dataset => ({ registros: [], taxas: [], exposicao: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() });
+const VAZIO = (): Dataset => ({ registros: [], taxas: [], exposicao: [], equipes: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() });
 
 const novoId = () =>
   globalThis.crypto?.randomUUID?.() ?? `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -35,6 +36,7 @@ interface DataCtx {
   setTaxa: (t: Taxa) => Resultado;
   setExposicao: (ano: number, mes: number, horas: number) => Resultado;
   setConfig: (c: ConfigTaxas) => Resultado;
+  setEquipes: (lista: Equipe[]) => Resultado;
   replaceAll: (d: Dataset) => Resultado;
   recarregar: () => Promise<void>;
 }
@@ -51,6 +53,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Dataset>(nuvem ? VAZIO : loadLocal);
   const [carregando, setCarregando] = useState(nuvem);
   const [erro, setErro] = useState<string | null>(null);
+  definirEquipes(data.equipes ?? []); // cadastro de equipes consultado por filtros e gráficos
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const recarregar = useCallback(async () => {
@@ -181,6 +184,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [admin, nuvem],
   );
 
+  const setEquipes = useCallback(
+    async (lista: Equipe[]): Resultado => {
+      if (!admin) return NEGADO;
+      if (nuvem) {
+        const e = await gravarEquipes(lista);
+        if (e) return e;
+      }
+      setData((d) => ({ ...d, equipes: lista, atualizadoEm: agora() }));
+      return null;
+    },
+    [admin, nuvem],
+  );
+
   const replaceAll = useCallback(
     async (d: Dataset): Resultado => {
       if (!admin) return NEGADO;
@@ -191,15 +207,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return e;
         }
       }
-      setData((atual) => ({ ...d, exposicao: atual.exposicao, config: atual.config, atualizadoEm: agora() }));
+      setData((atual) => ({ ...d, exposicao: atual.exposicao, equipes: atual.equipes, config: atual.config, atualizadoEm: agora() }));
       return null;
     },
     [admin, nuvem, recarregar],
   );
 
   const value = useMemo(
-    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, replaceAll, recarregar }),
-    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, replaceAll, recarregar],
+    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar }),
+    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

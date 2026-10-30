@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Maximize2, Menu, Minimize2, Moon, Sun } from "lucide-react";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { DataProvider, useData } from "./lib/store";
 import { FiltrosProvider } from "./lib/filters";
-import { fmtDataHora } from "./lib/stats";
+import { fmtData } from "./lib/stats";
+import Foto, { FotoBotao } from "./components/Foto";
 import Sidebar, { type Page } from "./components/Sidebar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -36,6 +37,7 @@ function Shell() {
   const [page, setPage] = useState<Page>(fromHash);
   const [menu, setMenu] = useState(false);
   const [max, setMax] = useState(false);
+  const [foto, setFoto] = useState(false);
   const { mode, toggle } = useTheme();
 
   useEffect(() => {
@@ -81,6 +83,8 @@ function Shell() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
 
+  const ultimoEvento = useMemo(() => data.registros.reduce((m, r) => (r.categoria === "acidente" && r.data > m ? r.data : m), ""), [data.registros]);
+
   const nav = (p: Page) => {
     location.hash = p;
     setMenu(false);
@@ -98,9 +102,10 @@ function Shell() {
           </button>
           <div className="grow">
             <h1>{TITULOS[page]}</h1>
-            <p>Última atualização: {fmtDataHora(data.atualizadoEm)}</p>
+            <p>Último evento acidental registrado: {ultimoEvento ? fmtData(ultimoEvento) : "—"}</p>
           </div>
           <div className="top-actions">
+            {page === "painel" && <FotoBotao onClick={() => setFoto(true)} />}
             <button className="icon-btn" onClick={toggle} aria-label={mode === "dark" ? "Tema claro" : "Tema escuro"} title={mode === "dark" ? "Tema claro" : "Tema escuro"}>
               {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -118,6 +123,7 @@ function Shell() {
         {carregando && !erro && <div className="note" role="status">Carregando dados…</div>}
         {page !== "taxas" && <FiltroTags />}
         {page === "painel" && <Dashboard />}
+        {foto && page === "painel" && <Foto onClose={() => setFoto(false)} />}
         {page === "taxas" && <Rates />}
         {page === "comparativo" && <Compare />}
         {page === "registros" && <Records />}

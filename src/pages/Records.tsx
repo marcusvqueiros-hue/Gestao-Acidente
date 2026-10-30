@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Pencil, Plus, Search, Trash2, Upload, Users, X } from "lucide-react";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { aplicar, useFiltros } from "../lib/filters";
 import { fmtData } from "../lib/stats";
 import { parseWorkbook } from "../lib/parse";
+import { gerenteDe, parseEquipes } from "../lib/equipes";
+import { coordenadorDe, NOMES_DAS_REGRAS } from "../lib/coordenacao";
 import type { Registro } from "../types";
 import { Badge, Card, Empty, Toast, useTravaRolagem } from "../components/ui";
 import RecordForm from "../components/RecordForm";
@@ -22,6 +24,8 @@ function Detail({ r, registra, onClose, onEdit, onDelete }: { r: Registro; regis
     ["Base", r.base],
     ["Cidade", r.cidade],
     ["Supervisor", r.supervisor],
+    ["Coordenador", coordenadorDe(r)],
+    ["Gerente", gerenteDe(r)],
     ["Tipo", r.tipo],
     ["Característica", r.caracteristica],
     ["Definição", r.definicao],
@@ -73,7 +77,7 @@ function Detail({ r, registra, onClose, onEdit, onDelete }: { r: Registro; regis
 }
 
 export default function Records() {
-  const { data, addRegistro, updateRegistro, removeRegistro, replaceAll, carregando, nuvem } = useData();
+  const { data, addRegistro, updateRegistro, removeRegistro, replaceAll, setEquipes, carregando, nuvem } = useData();
   const { filtros } = useFiltros();
   const { admin, registra } = useAuth();
   const [categoria, setCategoria] = useState<Registro["categoria"]>("acidente");
@@ -83,6 +87,7 @@ export default function Records() {
   const [form, setForm] = useState<{ inicial?: Registro } | null>(null);
   const [toast, setToast] = useState("");
   const file = useRef<HTMLInputElement>(null);
+  const fileEq = useRef<HTMLInputElement>(null);
 
   const lista = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -126,11 +131,25 @@ export default function Records() {
     }
   }
 
+  async function importarEquipes(f: File) {
+    try {
+      const X = await import("xlsx");
+      const lista = parseEquipes(X, X.read(await f.arrayBuffer(), { type: "array" }), NOMES_DAS_REGRAS);
+      if (!lista.length) return setToast("Nenhuma equipe encontrada (colunas: Prefixo, Base, Gerência, Coordenador, Gerente)");
+      if (!confirm(`Substituir o cadastro atual (${data.equipes.length} equipes) por ${lista.length} equipes da planilha?`)) return;
+      setToast("Importando equipes… aguarde");
+      const erro = await setEquipes(lista);
+      setToast(erro ?? `${lista.length} equipes importadas`);
+    } catch {
+      setToast("Não foi possível ler a planilha de equipes");
+    }
+  }
+
   async function exportar() {
     const X = await import("xlsx");
     const linhas = lista.map((r) => ({
       DATA: fmtData(r.data), HORA: r.hora ?? "", TURNO: r.turno, COLABORADOR: r.colaborador, PREFIXO: r.prefixo,
-      GERÊNCIA: r.processo, BASE: r.base, CIDADE: r.cidade, SUPERVISOR: r.supervisor, TIPO: r.tipo,
+      GERÊNCIA: r.processo, BASE: r.base, CIDADE: r.cidade, SUPERVISOR: r.supervisor, COORDENADOR: coordenadorDe(r), GERENTE: gerenteDe(r), TIPO: r.tipo,
       CARACTERÍSTICA: r.caracteristica, DEFINIÇÃO: r.definicao, DESCRIÇÃO: r.descricao, ENVOLVIDOS: r.envolvidos,
       GRAVIDADE: r.gravidade, LESÃO: r.lesao, "DIAS PERDIDOS": r.diasPerdidos ?? "", "DIAS DEBITADOS": r.diasDebitados ?? "", CAT: r.cat, TRAJETO: r.trajeto,
     }));
@@ -151,8 +170,10 @@ export default function Records() {
           <input className="input" placeholder="Buscar por colaborador, prefixo, cidade, descrição…" value={q} onChange={(e) => { setQ(e.target.value); setPagina(0); }} />
         </div>
         {admin && <button className="btn" onClick={() => file.current?.click()}><Upload size={15} /> Importar</button>}
+        {admin && <button className="btn" onClick={() => fileEq.current?.click()}><Users size={15} /> Importar equipes</button>}
         <button className="btn" onClick={exportar} disabled={!lista.length}><Download size={15} /> Exportar</button>
         {registra && <button className="btn primary" onClick={() => setForm({})}><Plus size={15} /> Novo registro</button>}
+        <input ref={fileEq} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importarEquipes(f); e.target.value = ""; }} />
         <input ref={file} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ""; }} />
       </div>
 

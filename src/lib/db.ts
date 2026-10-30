@@ -1,4 +1,4 @@
-import type { ConfigTaxas, Dataset, Exposicao, Registro, Taxa } from "../types";
+import type { ConfigTaxas, Dataset, Equipe, Exposicao, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { supabase } from "./supabase";
 
@@ -92,17 +92,19 @@ async function opcional(tabela: string, ordem: string[]): Promise<Linha[]> {
 }
 
 export async function carregarDataset(): Promise<Dataset> {
-  const [regs, taxas, expo, conf] = await Promise.all([
+  const [regs, taxas, expo, conf, eq] = await Promise.all([
     todas("registros", ["data", "id"]),
     todas("taxas", ["ano", "mes"]),
     opcional("exposicao", ["ano", "mes"]),
     opcional("configuracao", ["chave"]),
+    opcional("equipes", ["prefixo"]),
   ]);
   const cfg = conf.find((c) => c.chave === "taxas")?.valor as Partial<ConfigTaxas> | undefined;
   const marcas = [...regs, ...taxas].map((l) => l.atualizado_em as string).filter(Boolean);
   return {
     registros: regs.map(deLinha),
     taxas: taxas.map(taxaDeLinha),
+    equipes: eq.map((e) => ({ prefixo: e.prefixo, base: e.base ?? "", gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
     exposicao: expo.map((e) => ({ ano: e.ano, mes: e.mes, horas: Number(e.horas) })),
     config: { ...CONFIG_PADRAO, ...(cfg ?? {}) },
     atualizadoEm: marcas.length ? marcas.reduce((a, b) => (a > b ? a : b)) : new Date().toISOString(),
@@ -155,4 +157,16 @@ export async function gravarExposicao(e: Exposicao): Promise<string | null> {
 export async function gravarConfig(cfg: ConfigTaxas): Promise<string | null> {
   const { error } = await db().from("configuracao").upsert({ chave: "taxas", valor: cfg });
   return mensagem(error);
+}
+
+/** Substitui o cadastro de equipes inteiro (importação da planilha). */
+export async function gravarEquipes(lista: Equipe[]): Promise<string | null> {
+  const c = db();
+  const r = await c.from("equipes").delete().neq("prefixo", "");
+  if (r.error) return mensagem(r.error);
+  for (let i = 0; i < lista.length; i += 300) {
+    const { error } = await c.from("equipes").insert(lista.slice(i, i + 300));
+    if (error) return mensagem(error);
+  }
+  return null;
 }

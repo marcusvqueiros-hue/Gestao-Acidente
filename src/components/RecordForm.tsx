@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import type { Registro } from "../types";
 import { BASES, CARACTERISTICAS, ENVOLVIDOS, GERENCIAS, LESOES, TIPOS, TURNOS } from "../types";
 import { turnoDaHora } from "../lib/parse";
 import { useTravaRolagem } from "./ui";
+import { useData } from "../lib/store";
+import { equipeDe, normPrefixo } from "../lib/equipes";
 
 const hoje = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
 
@@ -45,6 +47,27 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
   const [erros, setErros] = useState<Record<string, string>>({});
   const acidente = f.categoria === "acidente";
   const set = <K extends keyof Registro>(k: K, v: Registro[K]) => setF((s) => ({ ...s, [k]: v }));
+  const { data } = useData();
+  // sugestões vindas dos próprios registros: nomes e prefixos já cadastrados, do mais recente para o mais antigo
+  const sugestoes = useMemo(() => {
+    const recentes = [...data.registros].sort((a, b) => b.data.localeCompare(a.data));
+    const ultimoDe = (campo: "colaborador" | "prefixo") => {
+      const m = new Map<string, Registro>();
+      for (const r of recentes) if (r[campo] && !m.has(r[campo].toUpperCase())) m.set(r[campo].toUpperCase(), r);
+      return m;
+    };
+    return { colab: ultimoDe("colaborador"), prefixo: ultimoDe("prefixo") };
+  }, [data.registros]);
+  const nomesColab = useMemo(() => [...sugestoes.colab.keys()].sort((a, b) => a.localeCompare(b)), [sugestoes]);
+  const nomesPrefixo = useMemo(() => [...new Set([...data.equipes.map((e) => normPrefixo(e.prefixo)), ...sugestoes.prefixo.keys()])].sort((a, b) => a.localeCompare(b)), [sugestoes, data.equipes]);
+  // ao escolher uma equipe do cadastro, base e gerência vêm dela
+  const aplicarEquipe = (p: string) => {
+    const eq = equipeDe(p);
+    if (eq) setF((s) => ({ ...s, base: eq.base || s.base, processo: eq.gerencia || s.processo }));
+  };
+  // ao escolher um nome/prefixo conhecido, completa os campos ainda vazios com o último registro dele
+  const completar = (ref: Registro | undefined, campos: ("prefixo" | "processo" | "base" | "cidade" | "supervisor")[]) =>
+    ref && setF((s) => ({ ...s, ...Object.fromEntries(campos.filter((c) => !s[c] && ref[c]).map((c) => [c, ref[c]])) }));
   const carac = [...new Set([...CARACTERISTICAS, ...(f.caracteristica ? [f.caracteristica] : [])])];
 
   function submit(e: FormEvent) {
@@ -116,8 +139,10 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
 
         <div className="form-sec">Pessoas e local</div>
         <div className="form-grid">
-          <div className="field"><label>Colaborador / equipe *</label><input className="input" value={f.colaborador} onChange={(e) => set("colaborador", e.target.value)} />{err("colaborador")}</div>
-          <div className="field"><label>Prefixo</label><input className="input" value={f.prefixo} onChange={(e) => set("prefixo", e.target.value)} placeholder="MA-PDS-V001M" /></div>
+          <datalist id="lista-colaboradores">{nomesColab.map((n) => <option key={n} value={n} />)}</datalist>
+          <datalist id="lista-prefixos">{nomesPrefixo.map((n) => { const e = equipeDe(n); return <option key={n} value={n} label={e ? [e.base, e.gerencia, e.coordenador].filter(Boolean).join(" · ") : undefined} />; })}</datalist>
+          <div className="field"><label>Colaborador / equipe *</label><input className="input" list="lista-colaboradores" autoComplete="off" value={f.colaborador} onChange={(e) => { set("colaborador", e.target.value); completar(sugestoes.colab.get(e.target.value.trim().toUpperCase()), ["prefixo", "processo", "base", "cidade", "supervisor"]); }} />{err("colaborador")}</div>
+          <div className="field"><label>Prefixo</label><input className="input" list="lista-prefixos" autoComplete="off" value={f.prefixo} onChange={(e) => { set("prefixo", e.target.value); aplicarEquipe(e.target.value); completar(sugestoes.prefixo.get(normPrefixo(e.target.value)), ["processo", "base", "cidade", "supervisor"]); }} placeholder="MA-PDS-V001M" />{equipeDe(f.prefixo) && <small className="hint">Equipe cadastrada: {[equipeDe(f.prefixo)!.base, equipeDe(f.prefixo)!.gerencia, "coord. " + equipeDe(f.prefixo)!.coordenador, "gerente " + equipeDe(f.prefixo)!.gerente].filter(Boolean).join(" · ")}</small>}</div>
           <div className="field"><label>Gerência *</label><select className="select" value={f.processo} onChange={(e) => set("processo", e.target.value)}><option value="">Selecione</option>{opts(GERENCIAS)}</select>{err("processo")}</div>
           <div className="field"><label>Base *</label><select className="select" value={f.base} onChange={(e) => set("base", e.target.value)}><option value="">Selecione</option>{opts(BASES)}</select>{err("base")}</div>
           <div className="field"><label>Cidade</label><input className="input" value={f.cidade} onChange={(e) => set("cidade", e.target.value.toUpperCase())} /></div>

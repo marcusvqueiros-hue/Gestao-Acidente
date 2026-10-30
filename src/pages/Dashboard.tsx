@@ -21,11 +21,15 @@ export function Grad({ id, color }: { id: string; color: string }) {
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard({ compacto = false }: { compacto?: boolean }) {
   const { data } = useData();
   const { filtros, toggle } = useFiltros();
   const { c, mode } = useTheme();
   const axis = { fontSize: 12, fill: c.text };
+  const alt = compacto ? 220 : 290;
+  const ex = (t: string) => (compacto ? undefined : t);
+  const topo = compacto ? 7 : undefined;
+  const col = (n: number) => (compacto ? "s3" : `s${n}`);
 
   const acidentes = useMemo(() => data.registros.filter((r) => r.categoria === "acidente"), [data]);
   // cada gráfico ignora a própria seleção, para continuar mostrando todas as opções (as não selecionadas ficam esmaecidas)
@@ -113,7 +117,7 @@ export default function Dashboard() {
         <small>{sem ? `desde ${sem.desde.split("-").reverse().join("/")}${escopo ? " · " + escopo : ""} · clique para ver os casos` : `nenhum afastamento registrado${escopo ? " em " + escopo : ""}`}</small>
       </Card>
 
-      <Card title="Eventos por turno" extra="clique para filtrar · somente com turno informado" className="s12">
+      <Card title="Eventos por turno" extra={ex("clique para filtrar · somente com turno informado")} className={compacto ? "s3" : "s12"}>
         <div className="turnos">
           {turnos.map(({ t, icon }) => {
             const on = filtros.turnos.includes(t);
@@ -131,10 +135,10 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      <Card title="Histórico de eventos acidentais" extra="clique em uma barra ou mês" className="s8">
+      <Card title="Histórico de eventos acidentais" extra={ex("clique em uma barra ou mês")} className={compacto ? "s6" : "s8"}>
         {mensal.some((m) => m.total) ? (
           <>
-            <div style={{ height: 290 }}>
+            <div style={{ height: alt }}>
               <ResponsiveContainer>
                 <ComposedChart data={mensal} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
                   <defs>{LESOES.map((l) => <Grad key={l} id={`h-${l.replace(/ /g, "")}`} color={c.lesao[l]} />)}</defs>
@@ -181,9 +185,9 @@ export default function Dashboard() {
         )}
       </Card>
 
-      <Card title="Acidentes por dia da semana" extra="clique para filtrar" className="s4">
+      <Card title="Acidentes por dia da semana" extra={ex("clique para filtrar")} className={col(4)}>
         {semana.some((s) => s.value) ? (
-          <div style={{ height: 290 }}>
+          <div style={{ height: alt }}>
             <ResponsiveContainer>
               <ComposedChart data={semana} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
                 <defs><Grad id="wk" color={c.bar} /></defs>
@@ -205,26 +209,26 @@ export default function Dashboard() {
         )}
       </Card>
 
-      <Card title="Eventos por gerência" className="s4"><Donut data={processo} selected={filtros.gerencias} onPick={(n) => toggle("gerencias", n)} /></Card>
-      <Card title="Tipologia dos eventos" className="s4"><Donut data={tipo} selected={filtros.tipos} onPick={(n) => toggle("tipos", n)} /></Card>
-      <Card title="Envolvimento de terceiros" className="s4"><Donut data={terceiros} selected={filtros.envolvidos} onPick={(n) => toggle("envolvidos", n)} /></Card>
+      <Card title="Eventos por gerência" className={col(4)}><Donut data={processo} selected={filtros.gerencias} onPick={(n) => toggle("gerencias", n)} /></Card>
+      <Card title="Tipologia dos eventos" className={col(4)}><Donut data={tipo} selected={filtros.tipos} onPick={(n) => toggle("tipos", n)} /></Card>
+      <Card title="Envolvimento de terceiros" className={col(4)}><Donut data={terceiros} selected={filtros.envolvidos} onPick={(n) => toggle("envolvidos", n)} /></Card>
 
-      <Card title="Eventos por base" extra="passe o mouse para ver a tipologia" className="s4">
-        <Rank data={base} selected={filtros.bases} onPick={(n) => toggle("bases", n)} detail={tipologiaDe(baseRegs, "base")} />
+      <Card title="Eventos por base" extra={ex("passe o mouse para ver a tipologia")} className={col(4)}>
+        <Rank limit={topo} data={base} selected={filtros.bases} onPick={(n) => toggle("bases", n)} detail={compacto ? undefined : tipologiaDe(baseRegs, "base")} />
       </Card>
-      <Card title="Eventos por equipe" extra="passe o mouse para ver a tipologia" className="s4">
-        <Rank data={equipes} selected={filtros.equipes} onPick={(n) => toggle("equipes", n)} detail={tipologiaDe(equipeRegs, "prefixo")} />
-      </Card>
-
-      <Card title="Eventos por colaborador" extra="passe o mouse para ver a tipologia" className="s4">
-        <Rank data={colaboradores} selected={filtros.colaboradores} onPick={(n) => toggle("colaboradores", n)} detail={tipologiaDe(colabRegs, "colaborador")} />
+      <Card title="Eventos por equipe" extra={ex("passe o mouse para ver a tipologia")} className={col(4)}>
+        <Rank limit={topo} data={equipes} selected={filtros.equipes} onPick={(n) => toggle("equipes", n)} detail={compacto ? undefined : tipologiaDe(equipeRegs, "prefixo")} />
       </Card>
 
-      <Card title="Tipologia detalhada" extra="clique para filtrar" className="s6">
-        <Rank data={carac} selected={filtros.caracteristicas} onPick={(n) => toggle("caracteristicas", n)} />
+      <Card title="Eventos por colaborador" extra={ex("passe o mouse para ver a tipologia")} className={col(4)}>
+        <Rank limit={topo} data={colaboradores} selected={filtros.colaboradores} onPick={(n) => toggle("colaboradores", n)} detail={compacto ? undefined : tipologiaDe(colabRegs, "colaborador")} />
       </Card>
-      <Card title="Resumo" extra="definição do evento · clique para filtrar" className="s6">
-        <Rank data={resumoDef} selected={filtros.definicoes} onPick={(n) => toggle("definicoes", n)} />
+
+      <Card title="Tipologia detalhada" extra={ex("clique para filtrar")} className={col(6)}>
+        <Rank limit={topo} data={carac} selected={filtros.caracteristicas} onPick={(n) => toggle("caracteristicas", n)} />
+      </Card>
+      <Card title="Resumo" extra={ex("definição do evento · clique para filtrar")} className={col(6)}>
+        <Rank limit={topo} data={resumoDef} selected={filtros.definicoes} onPick={(n) => toggle("definicoes", n)} />
       </Card>
     </div>
   );

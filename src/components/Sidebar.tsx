@@ -2,6 +2,8 @@ import { Activity, ClipboardList, LayoutDashboard, LogOut, Scale, Users } from "
 import { useAuth } from "../lib/auth";
 import { useFiltros } from "../lib/filters";
 import { BASES, GERENCIAS, MESES } from "../types";
+import { listaCoordenadores } from "../lib/coordenacao";
+import { listaGerentes } from "../lib/equipes";
 import { Chips, Logo } from "./ui";
 
 export type Page = "painel" | "taxas" | "comparativo" | "registros" | "usuarios";
@@ -53,6 +55,16 @@ export default function Sidebar({ page, onNav, open }: { page: Page; onNav: (p: 
           <span>Gerência</span>
           <Chips options={GERENCIAS} selected={filtros.gerencias} onToggle={(v) => toggle("gerencias", v)} />
         </div>
+        <div className="fgroup">
+          <span>Coordenador</span>
+          <Chips options={listaCoordenadores()} selected={filtros.coordenadores} onToggle={(v) => toggle("coordenadores", v)} />
+        </div>
+        {listaGerentes().length > 0 && (
+          <div className="fgroup">
+            <span>Gerente</span>
+            <Chips options={listaGerentes()} selected={filtros.gerentes} onToggle={(v) => toggle("gerentes", v)} />
+          </div>
+        )}
       </div>
 
       <div className="side-foot">

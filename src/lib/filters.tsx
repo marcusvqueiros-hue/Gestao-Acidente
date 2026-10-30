@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import type { Registro } from "../types";
 import { useData } from "./store";
 import { diaDaSemana } from "./parse";
+import { coordenadorDe } from "./coordenacao";
+import { gerenteDe } from "./equipes";
 
 export interface Filtros {
   anos: number[];
@@ -18,6 +20,8 @@ export interface Filtros {
   caracteristicas: string[];
   definicoes: string[];
   turnos: string[];
+  coordenadores: string[];
+  gerentes: string[];
 }
 export type ChaveFiltro = keyof Filtros;
 
@@ -35,9 +39,12 @@ export const ROTULO_FILTRO: Record<ChaveFiltro, string> = {
   caracteristicas: "Característica",
   definicoes: "Resumo",
   turnos: "Turno",
+  coordenadores: "Coordenador",
+  gerentes: "Gerente",
 };
 
-const VAZIO: Filtros = { anos: [], meses: [], bases: [], gerencias: [], lesoes: [], dias: [], tipos: [], envolvidos: [], equipes: [], colaboradores: [], caracteristicas: [], definicoes: [], turnos: [] };
+export const FILTROS_VAZIOS: Filtros = { anos: [], meses: [], bases: [], gerencias: [], lesoes: [], dias: [], tipos: [], envolvidos: [], equipes: [], colaboradores: [], caracteristicas: [], definicoes: [], turnos: [], coordenadores: [], gerentes: [] };
+const VAZIO = FILTROS_VAZIOS;
 
 interface Ctx {
   filtros: Filtros;
@@ -68,6 +75,8 @@ const TESTES: Record<ChaveFiltro, (r: Registro, f: Filtros) => boolean> = {
   caracteristicas: (r, f) => f.caracteristicas.includes(r.caracteristica),
   definicoes: (r, f) => f.definicoes.includes(r.definicao.toUpperCase()),
   turnos: (r, f) => f.turnos.includes(r.turno),
+  coordenadores: (r, f) => f.coordenadores.includes(coordenadorDe(r)),
+  gerentes: (r, f) => f.gerentes.includes(gerenteDe(r)),
 };
 
 /** Aplica os filtros; `ignorar` omite algumas dimensões (cada gráfico ignora a própria seleção para continuar mostrando todas as opções). */
@@ -115,4 +124,13 @@ export function FiltrosProvider({ children }: { children: ReactNode }) {
   return (
     <FCtx.Provider value={{ filtros, toggle, limpar, limparSelecoes, ativos, anosDisponiveis }}>{children}</FCtx.Provider>
   );
+}
+
+/** Fornece filtros fixos (sem interação): usado para gerar a "fotografia" do painel com um recorte específico. */
+export function FiltrosFixos({ filtros, children }: { filtros: Filtros; children: ReactNode }) {
+  const valor = useMemo<Ctx>(
+    () => ({ filtros, toggle: () => {}, limpar: () => {}, limparSelecoes: () => {}, ativos: 0, anosDisponiveis: [] }),
+    [filtros],
+  );
+  return <FCtx.Provider value={valor}>{children}</FCtx.Provider>;
 }

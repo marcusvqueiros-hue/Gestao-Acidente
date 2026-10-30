@@ -4,7 +4,7 @@ export type Lesao = (typeof LESOES)[number];
 export const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 export const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 export const BASES = ["BCB", "BDC", "PDS", "PDT", "ITM", "STI", "SIT"];
-export const GERENCIAS = ["ALMOX", "ADM", "LOG", "SPOT", "SESMT", "GERE", "GOMAN", "GSTC"];
+export const GERENCIAS = ["ALMOX", "ADM", "LOG", "SPOT", "SESMT", "GERE", "GOMAN", "GSTC", "FROTA"];
 export const TIPOS = ["TÍPICO", "SINIS. TRÂNSITO", "PRI. SOCORROS", "INCIDENTE", "OUTROS"];
 export const TURNOS = ["MANHÃ", "TARDE", "NOITE"];
 export const ENVOLVIDOS = ["PRÓPRIOS", "TERCEIROS"];
@@ -107,6 +107,16 @@ export interface Dataset {
   registros: Registro[];
   taxas: Taxa[]; // taxas importadas da planilha (histórico), usadas quando não há horas-homem
   exposicao: Exposicao[];
+  equipes: Equipe[];
   config: ConfigTaxas;
   atualizadoEm: string; // ISO
+}
+
+/** Cadastro de equipes (prefixos): base, gerência, coordenação e gerência geral de cada uma. */
+export interface Equipe {
+  prefixo: string;
+  base: string; // código: BCB, BDC...
+  gerencia: string; // código: GSTC, GOMAN...
+  coordenador: string;
+  gerente: string;
 }

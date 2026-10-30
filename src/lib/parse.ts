@@ -152,5 +152,5 @@ export function parseWorkbook(X: X, wb: XLSXNS.WorkBook): Dataset {
   });
 
   registros.sort((a, b) => a.data.localeCompare(b.data));
-  return { registros, taxas, exposicao: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() };
+  return { registros, taxas, exposicao: [], equipes: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() };
 }

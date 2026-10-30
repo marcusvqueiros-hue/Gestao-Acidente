@@ -7,3 +7,4 @@ dist
 .env
 scripts/base.xlsx
 scripts/seed.json
+supabase/equipes-dados.sql

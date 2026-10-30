@@ -462,3 +462,40 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .formulas { margin: 0 0 12px; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; }
 .formulas.leve { color: var(--muted); font-size: 12px; }
 .formulas b { color: var(--ink); }
+
+/* ====== Fotografia do painel (16:9) ====== */
+.foto-back { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / 0.62); display: grid; place-items: center; padding: 16px; }
+.foto { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; width: min(1600px, 100%); height: 100%; overflow: hidden; padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 12px; }
+.foto-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.foto-top h3 { font-size: 17px; }
+.foto-top small { color: var(--muted); font-size: 12px; }
+.foto-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.foto-ctrl .grow { flex: 1; }
+.foto-ctrl .select { width: auto; min-width: 240px; }
+.foto-prog { font-size: 13px; color: var(--brand); }
+.foto-palco { position: relative; width: 100%; flex: 1; min-height: 0; display: grid; place-items: center; }
+.foto-moldura { overflow: hidden; border-radius: 10px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+.slide { background: var(--bg); color: var(--ink); overflow: hidden; pointer-events: none; text-align: left; }
+.slide-in { padding: 26px 34px 28px; }
+.slide-head { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; }
+.slide-head .grow { flex: 1; }
+.slide-head h2 { font-size: 30px; letter-spacing: -0.02em; }
+.slide-head p { color: var(--muted); font-size: 15px; margin-top: 3px; }
+.slide-meta { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+.slide-meta span { color: var(--muted); font-size: 13px; }
+.slide-meta b { font-size: 26px; letter-spacing: -0.02em; }
+.slide .grid { gap: 14px; }
+.slide .card { padding: 14px 16px; box-shadow: none; }
+.slide .card h3 { margin-bottom: 10px; }
+.slide .rank { max-height: none; overflow: visible; gap: 7px; }
+.slide .donut { height: 190px !important; }
+.slide .turnos { grid-template-columns: 1fr; gap: 8px; }
+.slide .turno { padding: 10px 14px; justify-content: flex-start; }
+.slide .turno b { font-size: 26px; }
+.slide .legend { margin-top: 4px; }
+@media (max-width: 640px) { .foto-back { padding: 0; } .foto { border-radius: 0; height: 100%; } }
+/* a fotografia tem tamanho próprio: não pode depender da largura da janela */
+.slide .grid { grid-template-columns: repeat(12, 1fr); }
+.slide .s2 { grid-column: span 2; } .slide .s3 { grid-column: span 3; } .slide .s6 { grid-column: span 6; }
+.slide .turnos { grid-template-columns: 1fr; }
+.slide .turno { justify-content: flex-start; }
