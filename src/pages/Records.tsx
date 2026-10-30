@@ -6,7 +6,7 @@ import { aplicar, useFiltros } from "../lib/filters";
 import { fmtData } from "../lib/stats";
 import { parseWorkbook } from "../lib/parse";
 import { gerenteDe, parseEquipes } from "../lib/equipes";
-import { colaboradorDe, parseColaboradores } from "../lib/colaboradores";
+import { colaboradorDe } from "../lib/colaboradores";
 import { coordenadorDe, NOMES_DAS_REGRAS } from "../lib/coordenacao";
 import type { Registro } from "../types";
 import { Badge, Card, Empty, Toast, useTravaRolagem } from "../components/ui";
@@ -80,7 +80,7 @@ function Detail({ r, registra, onClose, onEdit, onDelete }: { r: Registro; regis
 }
 
 export default function Records() {
-  const { data, addRegistro, updateRegistro, removeRegistro, replaceAll, setEquipes, setColaboradores, carregando, nuvem } = useData();
+  const { data, addRegistro, updateRegistro, removeRegistro, replaceAll, setEquipes, carregando, nuvem } = useData();
   const { filtros } = useFiltros();
   const { admin, registra } = useAuth();
   const [categoria, setCategoria] = useState<Registro["categoria"]>("acidente");
@@ -91,7 +91,6 @@ export default function Records() {
   const [toast, setToast] = useState("");
   const file = useRef<HTMLInputElement>(null);
   const fileEq = useRef<HTMLInputElement>(null);
-  const fileCol = useRef<HTMLInputElement>(null);
 
   const lista = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -149,20 +148,6 @@ export default function Records() {
     }
   }
 
-  async function importarColaboradores(f: File) {
-    try {
-      const X = await import("xlsx");
-      const lista = parseColaboradores(X, X.read(await f.arrayBuffer(), { type: "array" }));
-      if (!lista.length) return setToast("Nenhum colaborador encontrado (aba Base: CHAPA, NOME, FUNÇÃO, BASE, PROCESSO, GERENCIA, SITUAÇÃO)");
-      if (!confirm(`Substituir o quadro atual (${data.colaboradores.length} colaboradores) por ${lista.length} da planilha?`)) return;
-      setToast("Importando colaboradores… aguarde");
-      const erro = await setColaboradores(lista);
-      setToast(erro ?? `${lista.length} colaboradores importados`);
-    } catch {
-      setToast("Não foi possível ler a planilha de colaboradores");
-    }
-  }
-
   async function exportar() {
     const X = await import("xlsx");
     const linhas = lista.map((r) => ({
@@ -189,10 +174,8 @@ export default function Records() {
         </div>
         {admin && <button className="btn" onClick={() => file.current?.click()}><Upload size={15} /> Importar</button>}
         {admin && <button className="btn" onClick={() => fileEq.current?.click()}><Users size={15} /> Importar equipes</button>}
-        {admin && <button className="btn" onClick={() => fileCol.current?.click()}><Users size={15} /> Importar colaboradores</button>}
         <button className="btn" onClick={exportar} disabled={!lista.length}><Download size={15} /> Exportar</button>
         {registra && <button className="btn primary" onClick={() => setForm({})}><Plus size={15} /> Novo registro</button>}
-        <input ref={fileCol} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importarColaboradores(f); e.target.value = ""; }} />
         <input ref={fileEq} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importarEquipes(f); e.target.value = ""; }} />
         <input ref={file} type="file" accept=".xlsx,.xlsm" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ""; }} />
       </div>

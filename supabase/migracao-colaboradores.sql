@@ -1,29 +1,11 @@
--- Quadro de colaboradores (planilha do QSMS): chapa, nome, função, base, processo, gerência e situação.
+-- Quadro de colaboradores: a tabela public.colaboradores JÁ EXISTE no banco (id = chapa; dados = JSON com
+-- nome, funcao, base, gerencia...). Este sistema só lê. Falta apenas liberar a leitura para quem tem perfil.
 -- Rode uma vez em: Supabase → SQL Editor → New query → Run.
--- Os dados entram pelo botão "Importar colaboradores" em Registros (administrador),
--- com a planilha do QSMS (aba "Base": CHAPA, NOME, FUNÇÃO, BASE, PROCESSO, GERENCIA, SITUAÇÃO).
+-- Não altera nem apaga nenhum dado, não liga/desliga a segurança da tabela e não muda o acesso de outros apps.
 
-create table if not exists public.colaboradores (
-  chapa         text primary key,
-  nome          text not null,
-  funcao        text not null default '',
-  base          text not null default '',
-  processo      text not null default '',
-  gerencia      text not null default '',
-  situacao      text not null default '',
-  atualizado_em timestamptz not null default now()
-);
-create index if not exists colaboradores_nome_idx on public.colaboradores (nome);
+drop policy if exists colaboradores_ler_perfis on public.colaboradores;
+create policy colaboradores_ler_perfis on public.colaboradores
+  for select to authenticated
+  using (public.meu_perfil() is not null);
 
-drop trigger if exists colaboradores_carimbo on public.colaboradores;
-create trigger colaboradores_carimbo before update on public.colaboradores
-  for each row execute function public.carimbar_atualizacao();
-
-alter table public.colaboradores enable row level security;
-drop policy if exists colaboradores_ler on public.colaboradores;
-drop policy if exists colaboradores_gravar on public.colaboradores;
-create policy colaboradores_ler    on public.colaboradores for select to authenticated using (public.meu_perfil() is not null);
-create policy colaboradores_gravar on public.colaboradores for all    to authenticated using (public.meu_perfil() = 'admin') with check (public.meu_perfil() = 'admin');
-
-revoke all on public.colaboradores from anon;
-grant select, insert, update, delete on public.colaboradores to authenticated;
+grant select on public.colaboradores to authenticated;

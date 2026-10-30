@@ -5,7 +5,7 @@ import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { definirEquipes } from "./equipes";
 import { definirColaboradores } from "./colaboradores";
-import { apagarRegistro, carregarDataset, gravarColaboradores, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
+import { apagarRegistro, carregarDataset, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
 
 const KEY = "cgb.dataset.v1";
 const VAZIO = (): Dataset => ({ registros: [], taxas: [], exposicao: [], equipes: [], colaboradores: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() });
@@ -38,7 +38,6 @@ interface DataCtx {
   setExposicao: (ano: number, mes: number, horas: number) => Resultado;
   setConfig: (c: ConfigTaxas) => Resultado;
   setEquipes: (lista: Equipe[]) => Resultado;
-  setColaboradores: (lista: Colaborador[]) => Resultado;
   replaceAll: (d: Dataset) => Resultado;
   recarregar: () => Promise<void>;
 }
@@ -200,19 +199,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [admin, nuvem],
   );
 
-  const setColaboradores = useCallback(
-    async (lista: Colaborador[]): Resultado => {
-      if (!admin) return NEGADO;
-      if (nuvem) {
-        const e = await gravarColaboradores(lista);
-        if (e) return e;
-      }
-      setData((d) => ({ ...d, colaboradores: lista, atualizadoEm: agora() }));
-      return null;
-    },
-    [admin, nuvem],
-  );
-
   const replaceAll = useCallback(
     async (d: Dataset): Resultado => {
       if (!admin) return NEGADO;
@@ -230,8 +216,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setColaboradores, replaceAll, recarregar }),
-    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setColaboradores, replaceAll, recarregar],
+    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar }),
+    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
