@@ -34,6 +34,7 @@ const fromHash = (): Page => {
 
 function Shell() {
   const { data, carregando, erro, recarregar } = useData();
+  const { admin } = useAuth();
   const [page, setPage] = useState<Page>(fromHash);
   const [menu, setMenu] = useState(false);
   const [max, setMax] = useState(false);
@@ -126,8 +127,8 @@ function Shell() {
         {foto && page === "painel" && <Foto onClose={() => setFoto(false)} />}
         {page === "taxas" && <Rates />}
         {page === "comparativo" && <Compare />}
-        {page === "registros" && <Records />}
-        {page === "usuarios" && <Users />}
+        {page === "registros" && admin && <Records />}
+        {page === "usuarios" && admin && <Users />}
       </main>
     </div>
   );

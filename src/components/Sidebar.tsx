@@ -12,7 +12,7 @@ const ITENS: { id: Page; label: string; icon: typeof Activity; admin?: boolean }
   { id: "painel", label: "Painel", icon: LayoutDashboard },
   { id: "taxas", label: "Taxas", icon: Activity },
   { id: "comparativo", label: "Comparativo", icon: Scale },
-  { id: "registros", label: "Registros", icon: ClipboardList },
+  { id: "registros", label: "Registros", icon: ClipboardList, admin: true },
   { id: "usuarios", label: "Usuários", icon: Users, admin: true },
 ];
 
