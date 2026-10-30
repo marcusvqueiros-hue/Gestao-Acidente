@@ -1,9 +1,34 @@
-import { useState, type FormEvent } from "react";
-import { KeyRound, Trash2, UserPlus } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { FileUp, KeyRound, Trash2, UserPlus } from "lucide-react";
 import { useAuth, type Perfil } from "../lib/auth";
 import { Card, Toast } from "../components/ui";
 
 const ROTULO: Record<Perfil, string> = { admin: "Administrador", registrador: "Registrador", leitor: "Leitor" };
+
+const sem = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+const chave = (t: string) => sem(String(t ?? "")).toUpperCase().replace(/[^A-Z0-9]/g, "");
+const pronto = (v: unknown) => {
+  const t = String(v ?? "").trim();
+  return t && !t.startsWith("=") ? t : "";
+};
+const maiuscula = (p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+
+/** Lê a planilha de acessos: CHAPA, NOME, USUARIO, SENHA (e, opcionalmente, PERFIL). Sem USUARIO/SENHA, aplica a regra padrão. */
+function linhasDaPlanilha(linhas: Record<string, unknown>[]) {
+  return linhas.flatMap((l) => {
+    const c: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(l)) c[chave(k)] = v;
+    const nome = String(c.NOME ?? "").trim();
+    const chapa = String(c.CHAPA ?? "").trim();
+    if (!nome && !pronto(c.USUARIO)) return [];
+    const p = sem(nome).split(/\s+/).filter(Boolean);
+    const usuario = pronto(c.USUARIO) || (p.length ? "@" + maiuscula(p[0]) + maiuscula(p[p.length - 1]) : "");
+    const senha = pronto(c.SENHA) || (chapa && nome ? "Sinistro@" + chapa + nome.charAt(0).toLowerCase() : "");
+    const bruto = chave(String(c.PERFIL ?? ""));
+    const perfil: Perfil = bruto.startsWith("ADM") ? "admin" : bruto.startsWith("REGIS") ? "registrador" : "leitor";
+    return [{ usuario, senha, perfil }];
+  });
+}
 
 export default function Users() {
   const { usuarios, addUsuario, removeUsuario, redefinirSenha, admin, nuvem } = useAuth();
@@ -12,6 +37,9 @@ export default function Users() {
   const [perfil, setPerfil] = useState<Perfil>("leitor");
   const [erro, setErro] = useState("");
   const [toast, setToast] = useState("");
+  const [lote, setLote] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const arquivo = useRef<HTMLInputElement>(null);
 
   if (!admin) return <Card><div className="empty">Apenas administradores podem gerenciar usuários.</div></Card>;
 
@@ -23,6 +51,37 @@ export default function Users() {
       setUser("");
       setPass("");
       setToast("Usuário criado");
+    }
+  }
+
+  async function importar(f: File) {
+    setOcupado(true);
+    setLote("Lendo a planilha…");
+    try {
+      const X = await import("xlsx");
+      const wb = X.read(await f.arrayBuffer());
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const itens = linhasDaPlanilha(X.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" }));
+      if (!itens.length) {
+        setLote("Nenhum usuário encontrado. A planilha precisa das colunas NOME e CHAPA (ou USUARIO e SENHA).");
+        return;
+      }
+      let criados = 0;
+      const jaExistem: string[] = [];
+      const falhas: string[] = [];
+      for (let i = 0; i < itens.length; i++) {
+        const it = itens[i];
+        setLote(`Importando ${i + 1} de ${itens.length}…`);
+        const r = await addUsuario(it.usuario, it.senha, it.perfil);
+        if (!r) criados++;
+        else if (/já existe/i.test(r)) jaExistem.push(it.usuario);
+        else falhas.push(`${it.usuario}: ${r}`);
+      }
+      setLote(`${criados} criado(s), ${jaExistem.length} já existia(m)${falhas.length ? `, ${falhas.length} com erro — ${falhas.slice(0, 3).join(" | ")}` : ""}.`);
+    } catch (e) {
+      setLote("Não foi possível ler a planilha: " + (e as Error).message);
+    } finally {
+      setOcupado(false);
     }
   }
 
@@ -66,6 +125,12 @@ export default function Users() {
       </Card>
 
       <Card title="Usuários" extra={`${nuvem ? usuarios.length : usuarios.length + 1} no total`} className="s7">
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <input ref={arquivo} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ""; }} />
+          <button className="btn" disabled={ocupado} onClick={() => arquivo.current?.click()}><FileUp size={16} /> Importar planilha</button>
+          <small style={{ color: "var(--muted)" }}>Colunas: CHAPA, NOME, USUARIO e SENHA (PERFIL opcional; sem ele, todos entram como Leitor). Quem já existe é ignorado.</small>
+        </div>
+        {lote && <div className="foto-prog" role="status" style={{ marginBottom: 12 }}>{lote}</div>}
         <div className="table-wrap">
           <table>
             <thead>
