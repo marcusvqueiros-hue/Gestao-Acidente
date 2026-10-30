@@ -85,7 +85,7 @@ export default async function handler(req: any, res: any) {
     if (senha === undefined) return responde(200, { ok: true });
   }
   if (typeof senha !== "string" || senha.length < 4) return responde(400, { erro: "A senha precisa ter ao menos 4 caracteres." });
-  const u = await rest(`/auth/v1/admin/users/${id}`, { method: "PUT", body: JSON.stringify({ password: senha }) });
+  const u = await rest(`/auth/v1/admin/users/${id}`, { method: "PUT", body: JSON.stringify({ password: senha, user_metadata: { senha_definida: false } }) });
   const j = await u.json().catch(() => ({}));
   return u.ok ? responde(200, { ok: true }) : responde(400, { erro: j.msg || j.message || "Não foi possível redefinir a senha." });
 }

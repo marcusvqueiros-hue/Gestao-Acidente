@@ -8,6 +8,7 @@ import { fmtData } from "./lib/stats";
 import Foto, { FotoBotao } from "./components/Foto";
 import Sidebar, { type Page } from "./components/Sidebar";
 import Login from "./pages/Login";
+import TrocarSenha from "./pages/TrocarSenha";
 import Dashboard from "./pages/Dashboard";
 import { FiltroTags } from "./components/ui";
 import Rates from "./pages/Rates";
@@ -135,8 +136,9 @@ function Shell() {
 }
 
 function Gate() {
-  const { user, carregando } = useAuth();
+  const { user, carregando, trocarSenha } = useAuth();
   if (carregando) return <div className="splash" role="status" aria-label="Carregando" />;
+  if (user && trocarSenha) return <TrocarSenha />;
   return user ? (
     <DataProvider>
       <FiltrosProvider>

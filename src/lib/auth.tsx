@@ -81,6 +81,8 @@ const gravarUsuariosLocal = (l: Usuario[]) => {
 interface Sessao {
   user: string;
   perfil: Perfil;
+  /** primeiro acesso (ou senha redefinida por um administrador): precisa criar a própria senha */
+  trocarSenha?: boolean;
 }
 
 function lerSessaoLocal(): Sessao | null {
@@ -112,6 +114,9 @@ interface AuthCtx {
   removeUsuario: (user: string) => Promise<string | null>;
   redefinirSenha: (user: string, pass: string) => Promise<string | null>;
   alterarPerfil: (user: string, perfil: Perfil) => Promise<string | null>;
+  trocarSenha: boolean;
+  /** define a senha própria do usuário logado e libera o acesso */
+  definirSenha: (nova: string) => Promise<string | null>;
 }
 
 const Ctx = createContext<AuthCtx>(null!);
@@ -142,7 +147,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const buscarPerfil = useCallback(async (id: string): Promise<Sessao | null> => {
     const { data } = await supabase!.from("perfis").select("usuario, perfil").eq("id", id).maybeSingle();
-    return data ? { user: data.usuario, perfil: data.perfil as Perfil } : null;
+    if (!data) return null;
+    const { data: u } = await supabase!.auth.getUser();
+    const perfil = data.perfil as Perfil;
+    return { user: data.usuario, perfil, trocarSenha: perfil !== "admin" && u.user?.user_metadata?.senha_definida !== true };
   }, []);
 
   const carregarUsuarios = useCallback(async () => {
@@ -288,6 +296,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [carregarUsuarios],
   );
 
+  const definirSenha = useCallback(async (nova: string): Promise<string | null> => {
+    if (nova.length < 6) return "A nova senha precisa ter ao menos 6 caracteres.";
+    if (!supabase) return "Banco não configurado";
+    const { error } = await supabase.auth.updateUser({ password: nova, data: { senha_definida: true } });
+    if (error) return /same|different/i.test(error.message) ? "Escolha uma senha diferente da atual." : "Não foi possível salvar a senha. Tente novamente.";
+    setSessao((s) => (s ? { ...s, trocarSenha: false } : s));
+    return null;
+  }, []);
+
   const value = useMemo<AuthCtx>(
     () => ({
       user: sessao?.user ?? null,
@@ -303,8 +320,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       removeUsuario,
       redefinirSenha,
       alterarPerfil,
+      trocarSenha: !!sessao?.trocarSenha,
+      definirSenha,
     }),
-    [sessao, carregando, nuvem, usuarios, login, logout, addUsuario, removeUsuario, redefinirSenha, alterarPerfil],
+    [sessao, carregando, nuvem, usuarios, login, logout, addUsuario, removeUsuario, redefinirSenha, alterarPerfil, definirSenha],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
