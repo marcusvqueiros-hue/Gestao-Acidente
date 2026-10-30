@@ -111,6 +111,7 @@ interface AuthCtx {
   addUsuario: (user: string, pass: string, perfil: Perfil) => Promise<string | null>;
   removeUsuario: (user: string) => Promise<string | null>;
   redefinirSenha: (user: string, pass: string) => Promise<string | null>;
+  alterarPerfil: (user: string, perfil: Perfil) => Promise<string | null>;
 }
 
 const Ctx = createContext<AuthCtx>(null!);
@@ -271,6 +272,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, []);
 
+  const alterarPerfil = useCallback(
+    async (user: string, perfil: Perfil): Promise<string | null> => {
+      if (supabase) {
+        const erro = await chamarApi("PATCH", { usuario: user, perfil });
+        if (!erro) await carregarUsuarios();
+        return erro;
+      }
+      const nome = normalizaUsuario(user);
+      const lista = lerUsuariosLocal().map((x) => (normalizaUsuario(x.user) === nome ? { ...x, perfil } : x));
+      gravarUsuariosLocal(lista);
+      setUsuarios(lista);
+      return null;
+    },
+    [carregarUsuarios],
+  );
+
   const value = useMemo<AuthCtx>(
     () => ({
       user: sessao?.user ?? null,
@@ -285,8 +302,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       addUsuario,
       removeUsuario,
       redefinirSenha,
+      alterarPerfil,
     }),
-    [sessao, carregando, nuvem, usuarios, login, logout, addUsuario, removeUsuario, redefinirSenha],
+    [sessao, carregando, nuvem, usuarios, login, logout, addUsuario, removeUsuario, redefinirSenha, alterarPerfil],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -75,8 +75,15 @@ export default async function handler(req: any, res: any) {
     return d.ok ? responde(200, { ok: true }) : responde(500, { erro: "Não foi possível excluir o usuário." });
   }
 
-  // PATCH: redefinir senha
-  const { senha } = corpo;
+  // PATCH: alterar o perfil e/ou redefinir a senha
+  const { senha, perfil } = corpo;
+  if (perfil !== undefined) {
+    if (!["admin", "registrador", "leitor"].includes(perfil)) return responde(400, { erro: "Perfil inválido." });
+    if (id === admin.id && perfil !== "admin") return responde(400, { erro: "Você não pode rebaixar o próprio perfil." });
+    const p = await rest(`/rest/v1/perfis?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ perfil }) });
+    if (!p.ok) return responde(500, { erro: "Não foi possível alterar o perfil." });
+    if (senha === undefined) return responde(200, { ok: true });
+  }
   if (typeof senha !== "string" || senha.length < 4) return responde(400, { erro: "A senha precisa ter ao menos 4 caracteres." });
   const u = await rest(`/auth/v1/admin/users/${id}`, { method: "PUT", body: JSON.stringify({ password: senha }) });
   const j = await u.json().catch(() => ({}));
