@@ -195,7 +195,7 @@ export default function Dashboard({ compacto = false }: { compacto?: boolean }) 
                 <XAxis dataKey="nome" tick={axis} axisLine={false} tickLine={false} />
                 <YAxis hide domain={[0, "dataMax + 2"]} />
                 <Tooltip cursor={{ fill: c.cursor, radius: 8 }} content={<ChartTip />} labelFormatter={(_, p) => p?.[0]?.payload?.dia} />
-                <Bar dataKey="value" name="Eventos" fill="url(#wk)" maxBarSize={34} radius={[8, 8, 0, 0]} style={{ cursor: "pointer" }} onClick={(d: any) => toggle("dias", d.dia)}>
+                <Bar isAnimationActive={!compacto} dataKey="value" name="Eventos" fill="url(#wk)" maxBarSize={34} radius={[8, 8, 0, 0]} style={{ cursor: "pointer" }} onClick={(d: any) => toggle("dias", d.dia)}>
                   {semana.map((s) => (
                     <Cell key={s.dia} fill="url(#wk)" fillOpacity={filtros.dias.length > 0 && !filtros.dias.includes(s.dia) ? ESMAECIDO : 1} />
                   ))}
@@ -209,9 +209,9 @@ export default function Dashboard({ compacto = false }: { compacto?: boolean }) 
         )}
       </Card>
 
-      <Card title="Eventos por gerência" className={col(4)}><Donut data={processo} selected={filtros.gerencias} onPick={(n) => toggle("gerencias", n)} /></Card>
-      <Card title="Tipologia dos eventos" className={col(4)}><Donut data={tipo} selected={filtros.tipos} onPick={(n) => toggle("tipos", n)} /></Card>
-      <Card title="Envolvimento de terceiros" className={col(4)}><Donut data={terceiros} selected={filtros.envolvidos} onPick={(n) => toggle("envolvidos", n)} /></Card>
+      <Card title="Eventos por gerência" className={col(4)}><Donut animar={!compacto} data={processo} selected={filtros.gerencias} onPick={(n) => toggle("gerencias", n)} /></Card>
+      <Card title="Tipologia dos eventos" className={col(4)}><Donut animar={!compacto} data={tipo} selected={filtros.tipos} onPick={(n) => toggle("tipos", n)} /></Card>
+      <Card title="Envolvimento de terceiros" className={col(4)}><Donut animar={!compacto} data={terceiros} selected={filtros.envolvidos} onPick={(n) => toggle("envolvidos", n)} /></Card>
 
       <Card title="Eventos por base" extra={ex("passe o mouse para ver a tipologia")} className={col(4)}>
         <Rank limit={topo} data={base} selected={filtros.bases} onPick={(n) => toggle("bases", n)} detail={compacto ? undefined : tipologiaDe(baseRegs, "base")} />

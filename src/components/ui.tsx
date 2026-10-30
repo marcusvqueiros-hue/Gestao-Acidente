@@ -83,7 +83,7 @@ interface Selecionavel {
   onPick?: (name: string) => void;
 }
 
-export function Donut({ data, label = "eventos", selected = [], onPick }: { data: Item[]; label?: string } & Selecionavel) {
+export function Donut({ data, label = "eventos", selected = [], onPick, animar = true }: { data: Item[]; label?: string; animar?: boolean } & Selecionavel) {
   const { c } = useTheme();
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!total) return <Empty />;
@@ -127,6 +127,7 @@ export function Donut({ data, label = "eventos", selected = [], onPick }: { data
               cornerRadius={5}
               stroke="none"
               label={rotulo}
+              isAnimationActive={animar}
               labelLine={false}
               onClick={(d: any) => onPick?.(d.name)}
               style={{ cursor: onPick ? "pointer" : "default" }}
