@@ -117,6 +117,19 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
     setToast("Meses sem horas preenchidos");
   }
 
+  const [colado, setColado] = useState("");
+  async function aplicarColado() {
+    const nums = (colado.match(/d[d.,]*/g) ?? []).map((t) => Number(/^d{1,3}(.d{3})+(,d+)?$/.test(t) ? t.replace(/./g, "").replace(",", ".") : t.replace(",", "."))).filter((n) => Number.isFinite(n) && n > 0).slice(0, 12);
+    if (!nums.length) return setToast("Cole os valores de horas-homem (um por mês, a partir de janeiro)");
+    if (!confirm(`Gravar ${nums.length} mês(es) de horas-homem em ${ano}, de Jan a ${MESES[nums.length - 1]}?`)) return;
+    for (let i = 0; i < nums.length; i++) {
+      const e = await setExposicao(ano, i + 1, nums[i]);
+      if (e) return setToast(e);
+    }
+    setColado("");
+    setToast(`Horas-homem de ${ano} atualizadas (${nums.length} meses)`);
+  }
+
   const alterarCfg = async (parte: Partial<typeof cfg>) => {
     const e = await setConfig({ ...cfg, ...parte });
     if (e) setToast(e);
@@ -218,6 +231,8 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
           <div className="calc-fill">
             <input className="input" style={{ maxWidth: 220 }} inputMode="decimal" placeholder="Horas-homem por mês" value={padrao} onChange={(e) => setPadrao(e.target.value)} aria-label="Horas-homem mensais padrão" />
             <button className="btn" onClick={preencher}><Calculator size={15} /> Preencher meses sem horas</button>
+            <input className="input" style={{ maxWidth: 320 }} placeholder="Colar HH de jan em diante: 164898 166573 …" value={colado} onChange={(e) => setColado(e.target.value)} aria-label="Colar horas-homem de janeiro em diante" />
+            <button className="btn" disabled={!colado.trim()} onClick={aplicarColado}>Aplicar a {ano}</button>
           </div>
         )}
       </Card>
