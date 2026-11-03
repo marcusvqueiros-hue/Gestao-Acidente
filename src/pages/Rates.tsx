@@ -101,13 +101,22 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
   const totais = somar(linhas.slice(0, ate));
   const tAno = taxasDe(totais);
 
-  async function salvarHoras(mes: number, valor: string) {
-    const h = Number(valor.replace(",", "."));
-    if (valor.trim() !== "" && (!Number.isFinite(h) || h < 0)) return setToast("Informe um número válido de horas");
-    const atual = linhas[mes - 1].horas;
-    if ((valor.trim() === "" ? 0 : h) === atual) return;
-    const e = await setExposicao(ano, mes, valor.trim() === "" ? 0 : h);
-    if (e) setToast(e);
+  // horas digitadas ainda não gravadas, por mês; só vão para o banco ao clicar em Salvar
+  const [rascunho, setRascunho] = useState<Record<number, string>>({});
+  useEffect(() => setRascunho({}), [ano]);
+  const numero = (t: string) => (t.trim() === "" ? 0 : Number(t.replace(/./g, "").replace(",", ".")));
+  const alterada = (mes: number) => rascunho[mes] !== undefined && numero(rascunho[mes]) !== linhas[mes - 1].horas;
+  const invalida = (mes: number) => rascunho[mes] !== undefined && !(Number.isFinite(numero(rascunho[mes])) && numero(rascunho[mes]) >= 0);
+  const pendentes = linhas.map((l) => l.mes).filter(alterada);
+
+  async function salvarMeses(meses: number[]) {
+    if (meses.some(invalida)) return setToast("Informe um número válido de horas");
+    for (const m of meses) {
+      const e = await setExposicao(ano, m, numero(rascunho[m]));
+      if (e) return setToast(`${MESES[m - 1]}: ${e}`);
+    }
+    setRascunho((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !meses.includes(Number(k)))));
+    setToast(meses.length === 1 ? `Horas de ${MESES[meses[0] - 1]}/${ano} salvas` : `${meses.length} meses salvos`);
   }
 
   async function preencher() {
@@ -175,6 +184,7 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
                 <th className="num">TF</th>
                 <th className="num">TG</th>
                 <th>Origem</th>
+                {admin && <th>Salvar</th>}
               </tr>
             </thead>
             <tbody>
@@ -187,15 +197,15 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
                     <td className="num">
                       {admin ? (
                         <input
-                          key={`${ano}-${l.mes}-${l.horas}`}
                           className="input h-input"
                           type="text"
                           inputMode="decimal"
-                          defaultValue={l.horas ? String(l.horas) : ""}
+                          value={rascunho[l.mes] ?? (l.horas ? String(l.horas) : "")}
                           placeholder="0"
                           aria-label={`Horas-homem de ${MESES[i]}/${ano}`}
-                          onBlur={(e) => salvarHoras(l.mes, e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                          aria-invalid={invalida(l.mes)}
+                          onChange={(e) => setRascunho((r) => ({ ...r, [l.mes]: e.target.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && alterada(l.mes) && salvarMeses([l.mes])}
                         />
                       ) : l.horas ? fmtNum(l.horas, 0) : "—"}
                     </td>
@@ -207,6 +217,11 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
                     <td className="num"><b>{f(s.tf)}</b></td>
                     <td className="num"><b>{f(s.tg, 0)}</b></td>
                     <td><span className={`origem ${s.origem.replace(" ", "-")}`}>{s.origem}</span></td>
+                    {admin && (
+                      <td>
+                        <button className={`btn ${alterada(l.mes) ? "primary" : ""}`} style={{ padding: "5px 12px" }} disabled={!alterada(l.mes)} onClick={() => salvarMeses([l.mes])}>Salvar</button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -223,6 +238,7 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
                 <td className="num">{f(tAno.tf)}</td>
                 <td className="num">{f(tAno.tg, 0)}</td>
                 <td />
+                {admin && <td />}
               </tr>
             </tfoot>
           </table>
@@ -233,6 +249,7 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
 
         {admin && (
           <div className="calc-fill">
+            <button className="btn primary" disabled={!pendentes.length} onClick={() => salvarMeses(pendentes)}>Salvar todas as alterações{pendentes.length ? ` (${pendentes.length})` : ""}</button>
             <input className="input" style={{ maxWidth: 220 }} inputMode="decimal" placeholder="Horas-homem por mês" value={padrao} onChange={(e) => setPadrao(e.target.value)} aria-label="Horas-homem mensais padrão" />
             <button className="btn" onClick={preencher}><Calculator size={15} /> Preencher meses sem horas</button>
             <input className="input" style={{ maxWidth: 320 }} placeholder="Colar HH de jan em diante: 164898 166573 …" value={colado} onChange={(e) => setColado(e.target.value)} aria-label="Colar horas-homem de janeiro em diante" />
