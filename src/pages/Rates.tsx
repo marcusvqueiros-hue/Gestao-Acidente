@@ -104,7 +104,7 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
   // horas digitadas ainda não gravadas, por mês; só vão para o banco ao clicar em Salvar
   const [rascunho, setRascunho] = useState<Record<number, string>>({});
   useEffect(() => setRascunho({}), [ano]);
-  const numero = (t: string) => (t.trim() === "" ? 0 : Number(t.replace(/./g, "").replace(",", ".")));
+  const numero = (t: string) => (t.trim() === "" ? 0 : Number(t.replace(/\./g, "").replace(",", ".")));
   const alterada = (mes: number) => rascunho[mes] !== undefined && numero(rascunho[mes]) !== linhas[mes - 1].horas;
   const invalida = (mes: number) => rascunho[mes] !== undefined && !(Number.isFinite(numero(rascunho[mes])) && numero(rascunho[mes]) >= 0);
   const pendentes = linhas.map((l) => l.mes).filter(alterada);
