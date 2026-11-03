@@ -174,7 +174,7 @@ create policy configuracao_gravar on public.configuracao for all    to authentic
 revoke all on public.exposicao, public.configuracao from anon;
 grant select, insert, update, delete on public.exposicao, public.configuracao to authenticated;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'exposicao') then
     alter publication supabase_realtime add table public.exposicao;
@@ -183,7 +183,7 @@ begin
     alter publication supabase_realtime add table public.configuracao;
   end if;
 end
-$;
+$$;
 
 -- ============ PASSO FINAL: liberar o primeiro administrador ============
 -- 1) Em Authentication → Users → Add user → Create new user:

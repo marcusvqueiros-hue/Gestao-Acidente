@@ -8,7 +8,7 @@ import { parseWorkbook } from "../lib/parse";
 import { gerenteDe, parseEquipes } from "../lib/equipes";
 import { colaboradorDe } from "../lib/colaboradores";
 import { coordenadorDe, NOMES_DAS_REGRAS } from "../lib/coordenacao";
-import type { Registro } from "../types";
+import { MESES, type Registro } from "../types";
 import { Badge, Card, Empty, Toast, useTravaRolagem } from "../components/ui";
 import RecordForm from "../components/RecordForm";
 
@@ -89,6 +89,7 @@ export default function Records() {
   const [fAno, setFAno] = useState("");
   const [fGer, setFGer] = useState("");
   const [fBase, setFBase] = useState("");
+  const [fMes, setFMes] = useState("");
   const [maisRecente, setMaisRecente] = useState(true);
   const [sel, setSel] = useState<Registro | null>(null);
   const [form, setForm] = useState<{ inicial?: Registro } | null>(null);
@@ -99,17 +100,17 @@ export default function Records() {
   const daCategoria = useMemo(() => aplicar(data.registros.filter((r) => r.categoria === categoria), filtros), [data, categoria, filtros]);
   const opcoes = useMemo(() => {
     const unicos = (f: (r: Registro) => string) => [...new Set(daCategoria.map(f).filter(Boolean))];
-    return { anos: unicos((r) => r.data.slice(0, 4)).sort().reverse(), gerencias: unicos((r) => r.processo).sort(), bases: unicos((r) => r.base).sort() };
+    return { anos: unicos((r) => r.data.slice(0, 4)).sort().reverse(), meses: unicos((r) => r.data.slice(5, 7)).sort(), gerencias: unicos((r) => r.processo).sort(), bases: unicos((r) => r.base).sort() };
   }, [daCategoria]);
-  const temFiltro = !!(fAno || fGer || fBase);
+  const temFiltro = !!(fAno || fMes || fGer || fBase);
 
   const lista = useMemo(() => {
     const t = q.trim().toLowerCase();
     return daCategoria
-      .filter((r) => (!fAno || r.data.startsWith(fAno)) && (!fGer || r.processo === fGer) && (!fBase || r.base === fBase))
+      .filter((r) => (!fAno || r.data.startsWith(fAno)) && (!fMes || r.data.slice(5, 7) === fMes) && (!fGer || r.processo === fGer) && (!fBase || r.base === fBase))
       .filter((r) => !t || [r.colaborador, r.prefixo, r.cidade, r.tipo, r.caracteristica, r.descricao, r.supervisor].join(" ").toLowerCase().includes(t))
       .sort((a, b) => (maisRecente ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)));
-  }, [daCategoria, q, fAno, fGer, fBase, maisRecente]);
+  }, [daCategoria, q, fAno, fMes, fGer, fBase, maisRecente]);
 
   const paginas = Math.max(1, Math.ceil(lista.length / PAGE));
   const pg = Math.min(pagina, paginas - 1);
@@ -197,6 +198,10 @@ export default function Records() {
           <option value="">Ano: todos</option>
           {opcoes.anos.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={fMes} onChange={(e) => { setFMes(e.target.value); setPagina(0); }} aria-label="Filtrar por mês">
+          <option value="">Mês: todos</option>
+          {opcoes.meses.map((m) => <option key={m} value={m}>{MESES[Number(m) - 1]}</option>)}
+        </select>
         <select className="select" style={{ width: "auto", minWidth: 170 }} value={fGer} onChange={(e) => { setFGer(e.target.value); setPagina(0); }} aria-label="Filtrar por gerência">
           <option value="">Gerência: todas</option>
           {opcoes.gerencias.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -205,7 +210,7 @@ export default function Records() {
           <option value="">Base: todas</option>
           {opcoes.bases.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
-        {temFiltro && <button className="btn" onClick={() => { setFAno(""); setFGer(""); setFBase(""); setPagina(0); }}><X size={15} /> Limpar filtros</button>}
+        {temFiltro && <button className="btn" onClick={() => { setFAno(""); setFMes(""); setFGer(""); setFBase(""); setPagina(0); }}><X size={15} /> Limpar filtros</button>}
       </div>
 
       <Card>
