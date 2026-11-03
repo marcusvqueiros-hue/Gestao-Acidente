@@ -119,7 +119,11 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
 
   const [colado, setColado] = useState("");
   async function aplicarColado() {
-    const nums = (colado.match(/d[d.,]*/g) ?? []).map((t) => Number(/^d{1,3}(.d{3})+(,d+)?$/.test(t) ? t.replace(/./g, "").replace(",", ".") : t.replace(",", "."))).filter((n) => Number.isFinite(n) && n > 0).slice(0, 12);
+    const milhar = /^\d{1,3}(\.\d{3})+(,\d+)?$/;
+    const nums = (colado.match(/\d[\d.,]*/g) ?? [])
+      .map((t) => Number(milhar.test(t) ? t.replace(/\./g, "").replace(",", ".") : t.replace(",", ".")))
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .slice(0, 12);
     if (!nums.length) return setToast("Cole os valores de horas-homem (um por mês, a partir de janeiro)");
     if (!confirm(`Gravar ${nums.length} mês(es) de horas-homem em ${ano}, de Jan a ${MESES[nums.length - 1]}?`)) return;
     for (let i = 0; i < nums.length; i++) {
