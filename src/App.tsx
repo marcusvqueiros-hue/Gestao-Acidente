@@ -17,7 +17,7 @@ import Records from "./pages/Records";
 import Users from "./pages/Users";
 
 const TITULOS: Record<Page, string> = {
-  painel: "Monitoramento de Eventos Acidentais",
+  painel: "Monitoramento de Sinistros",
   taxas: "Taxas de frequência e gravidade",
   comparativo: "Comparativo entre anos",
   registros: "Registro de acidentes",

@@ -154,7 +154,7 @@ export default function Login() {
         <motion.section className="lg-hero" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.12 } } }}>
           <motion.div variants={item} className="lg-logo"><Logo height={88} tema="escuro" /></motion.div>
           <motion.h1 variants={item}>
-            Monitoramento de <span>Eventos Acidentais</span>
+            Monitoramento de <span>Sinistros</span>
           </motion.h1>
           <motion.p variants={item}>Indicadores, taxas e registros de segurança do trabalho reunidos em um só lugar.</motion.p>
           <motion.div variants={item}><Pulso /></motion.div>

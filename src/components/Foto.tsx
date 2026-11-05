@@ -78,7 +78,7 @@ function Slide({ alvo, onLargura, boxRef }: { alvo: Alvo; onLargura: (largura: n
         <header className="slide-head">
           <Logo height={40} />
           <div className="grow">
-            <h2>Monitoramento de Eventos Acidentais</h2>
+            <h2>Monitoramento de Sinistros</h2>
             <p>{alvo.rotulo} · {periodoTexto(alvo.filtros)}</p>
           </div>
           <div className="slide-meta">
