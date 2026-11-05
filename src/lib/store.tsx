@@ -46,7 +46,7 @@ const Ctx = createContext<DataCtx>(null!);
 export const useData = () => useContext(Ctx);
 
 const NEGADO = "Apenas administradores podem alterar os dados.";
-const NEGADO_REG = "Seu perfil não permite registrar acidentes.";
+const NEGADO_REG = "Seu perfil não permite registrar sinistros.";
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { admin, registra } = useAuth();

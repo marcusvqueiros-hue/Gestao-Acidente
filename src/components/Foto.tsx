@@ -82,7 +82,7 @@ function Slide({ alvo, onLargura, boxRef }: { alvo: Alvo; onLargura: (largura: n
             <p>{alvo.rotulo} · {periodoTexto(alvo.filtros)}</p>
           </div>
           <div className="slide-meta">
-            <span>Último evento acidental registrado</span>
+            <span>Último sinistro registrado</span>
             <b>{ultimo ? fmtData(ultimo) : "—"}</b>
           </div>
         </header>

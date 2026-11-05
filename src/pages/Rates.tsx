@@ -164,8 +164,8 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
           <div className="note" role="status">
             <TriangleAlert size={16} style={{ flex: "none", marginTop: 1 }} />
             <span>
-              {semDias > 0 && <>Há {semDias} acidente(s) com afastamento sem <b>dias perdidos</b> informados em {ano}: a taxa de gravidade fica subestimada até o preenchimento (edite em Registros). </>}
-              {trajeto > 0 && <>{trajeto} acidente(s) de trajeto ficaram fora do cálculo.</>}
+              {semDias > 0 && <>Há {semDias} sinistro(s) com afastamento sem <b>dias perdidos</b> informados em {ano}: a taxa de gravidade fica subestimada até o preenchimento (edite em Registros). </>}
+              {trajeto > 0 && <>{trajeto} sinistro(s) de trajeto ficaram fora do cálculo.</>}
             </span>
           </div>
         )}
@@ -176,8 +176,8 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
               <tr>
                 <th>Mês</th>
                 <th className="num">Horas-homem (H)</th>
-                <th className="num" title="Acidentes com afastamento (inclui fatais)">N c/ afast.</th>
-                <th className="num" title="Acidentes com lesão sem afastamento">N s/ afast.</th>
+                <th className="num" title="Sinistros com afastamento (inclui fatais)">N c/ afast.</th>
+                <th className="num" title="Sinistros com lesão sem afastamento">N s/ afast.</th>
                 <th className="num">Dias perdidos</th>
                 <th className="num">Dias debitados</th>
                 <th className="num">TFCA</th>
@@ -279,7 +279,7 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
         </div>
         <label className="check">
           <input type="checkbox" disabled={!admin} checked={cfg.incluirTrajeto} onChange={(e) => alterarCfg({ incluirTrajeto: e.target.checked })} />
-          Incluir acidentes de trajeto no cálculo
+          Incluir sinistros de trajeto no cálculo
         </label>
         {!admin && <p className="hint-inline">Somente administradores alteram critérios e horas-homem.</p>}
       </Card>
@@ -292,9 +292,9 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
         </ul>
         <ul className="formulas leve">
           <li><b>H</b>: horas-homem de exposição ao risco no período, incluindo horas extras e excluindo férias, licenças e faltas.</li>
-          <li><b>Dias perdidos</b>: dias corridos de afastamento, sem contar o dia do acidente nem o da volta.</li>
+          <li><b>Dias perdidos</b>: dias corridos de afastamento, sem contar o dia do sinistro nem o da volta.</li>
           <li><b>Dias debitados</b>: 6.000 dias para morte ou incapacidade total permanente; perdas parciais seguem a tabela da norma (informe no registro).</li>
-          <li>Fatais entram em N com afastamento. Acidentes de trajeto ficam de fora, salvo se marcado ao lado.</li>
+          <li>Fatais entram em N com afastamento. Sinistros de trajeto ficam de fora, salvo se marcado ao lado.</li>
           <li>Acumulado = soma de N, dias e H do início do ano até o mês.</li>
         </ul>
       </Card>

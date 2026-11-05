@@ -24,7 +24,7 @@ export default function Sidebar({ page, onNav, open }: { page: Page; onNav: (p: 
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="brand">
         <Logo height={40} />
-        <small>Gestão de Acidentalidade</small>
+        <small>Gestão de Sinistro</small>
       </div>
 
       <nav className="nav" aria-label="Principal">

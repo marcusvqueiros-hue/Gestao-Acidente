@@ -186,7 +186,7 @@ export default function Users() {
             <label htmlFor="nf">Perfil</label>
             <select id="nf" className="select" value={perfil} onChange={(e) => setPerfil(e.target.value as Perfil)}>
               <option value="leitor">Leitor — apenas consulta</option>
-              <option value="registrador">Registrador — consulta e registro de acidentes</option>
+              <option value="registrador">Registrador — consulta e registro de sinistros</option>
               <option value="admin">Administrador — acesso total, taxas e usuários</option>
             </select>
           </div>

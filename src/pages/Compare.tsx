@@ -197,7 +197,7 @@ export default function Compare() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            {taxa === "tg" && <p style={{ color: "var(--muted)", fontSize: 12 }}>Eixo em escala de raiz, por causa dos meses com acidente fatal.</p>}
+            {taxa === "tg" && <p style={{ color: "var(--muted)", fontSize: 12 }}>Eixo em escala de raiz, por causa dos meses com sinistro fatal.</p>}
           </Card>
 
           <Card

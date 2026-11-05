@@ -1,4 +1,4 @@
-"""Gera o carrossel de divulgação (PNG 1080x1350) do sistema Gestão de Acidentalidade.
+"""Gera o carrossel de divulgação (PNG 1080x1350) do sistema Gestão de Sinistro.
 Uso: python divulgacao/gerar_carrossel.py   (cria divulgacao/carrossel/slide-01.png ...)
 """
 import os
@@ -65,7 +65,7 @@ def cabecalho(im, d, n, total, titulo=None, sub=None):
     return 190
 
 
-def rodape(d, texto="Gestão de Acidentalidade · CGB Energia", seta=True):
+def rodape(d, texto="Gestão de Sinistro · CGB Energia", seta=True):
     d.line((70, H - 110, W - 70, H - 110), fill=LINE, width=2)
     d.text((70, H - 80), texto, font=f(26), fill=MUTED)
     if seta:
@@ -114,8 +114,8 @@ def capa():
     logo = logo.resize((int(logo.width * h / logo.height), h))
     im.paste(logo, (70, 90), logo)
     selo(d, 70, 330, "NOVO SISTEMA")
-    y = paragrafo(d, 70, 430, "Gestão de Acidentalidade", f(104, True), TXT, W - 140, 1.08)
-    y = paragrafo(d, 70, y + 24, "Todos os eventos acidentais da CGB reunidos em um só lugar, atualizados e ao alcance de qualquer aparelho.", f(38), MUTED, W - 160)
+    y = paragrafo(d, 70, 430, "Gestão de Sinistro", f(104, True), TXT, W - 140, 1.08)
+    y = paragrafo(d, 70, y + 24, "Todos os sinistros da CGB reunidos em um só lugar, atualizados e ao alcance de qualquer aparelho.", f(38), MUTED, W - 160)
     # mini gráfico decorativo
     barras(d, (70, 960, W - 70, 1210), [5, 7, 4, 8, 6, 9, 5, 7, 3, 4], rotulos=None)
     d.text((70, H - 80), "Deslize para conhecer", font=f(30, True), fill=ROSA)
@@ -146,7 +146,7 @@ def por_que():
 
 def painel():
     im, d = novo()
-    y = cabecalho(im, d, 3, TOTAL, "Painel de eventos acidentais", "A visão geral da operação em uma única tela.")
+    y = cabecalho(im, d, 3, TOTAL, "Monitoramento de Sinistros", "A visão geral da operação em uma única tela.")
     y += 30
     kpis = [("Total de eventos", "59"), ("Sem afastamento", "54"), ("Com afastamento", "2"), ("Dias sem afastamento", "99")]
     for i, (t, v) in enumerate(kpis):

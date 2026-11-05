@@ -135,7 +135,7 @@ export default function Dashboard({ compacto = false }: { compacto?: boolean }) 
         </div>
       </Card>
 
-      <Card title="Histórico de eventos acidentais" extra={ex("clique em uma barra ou mês")} className={compacto ? "s6" : "s8"}>
+      <Card title="Histórico de sinistros" extra={ex("clique em uma barra ou mês")} className={compacto ? "s6" : "s8"}>
         {mensal.some((m) => m.total) ? (
           <>
             <div style={{ height: alt }}>
@@ -185,7 +185,7 @@ export default function Dashboard({ compacto = false }: { compacto?: boolean }) 
         )}
       </Card>
 
-      <Card title="Acidentes por dia da semana" extra={ex("clique para filtrar")} className={col(4)}>
+      <Card title="Sinistros por dia da semana" extra={ex("clique para filtrar")} className={col(4)}>
         {semana.some((s) => s.value) ? (
           <div style={{ height: alt }}>
             <ResponsiveContainer>

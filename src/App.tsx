@@ -20,7 +20,7 @@ const TITULOS: Record<Page, string> = {
   painel: "Monitoramento de Sinistros",
   taxas: "Taxas de frequência e gravidade",
   comparativo: "Comparativo entre anos",
-  registros: "Registro de acidentes",
+  registros: "Registro de sinistros",
   usuarios: "Usuários e perfis",
 };
 
@@ -104,7 +104,7 @@ function Shell() {
           </button>
           <div className="grow">
             <h1>{TITULOS[page]}</h1>
-            <p>Último evento acidental registrado: {ultimoEvento ? fmtData(ultimoEvento) : "—"}</p>
+            <p>Último sinistro registrado: {ultimoEvento ? fmtData(ultimoEvento) : "—"}</p>
           </div>
           <div className="top-actions">
             {page === "painel" && <FotoBotao onClick={() => setFoto(true)} />}

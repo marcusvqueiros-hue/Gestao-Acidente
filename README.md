@@ -1,4 +1,4 @@
-# CGB · Gestão de Acidentalidade
+# CGB · Gestão de Sinistro
 
 React + Vite + TypeScript, gerenciado com Bun. Dados e login no Supabase.
 

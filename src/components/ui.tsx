@@ -178,7 +178,7 @@ export function Rank({
   selected = [],
   onPick,
   detail,
-  detailTitle = "Tipologia dos acidentes",
+  detailTitle = "Tipologia dos sinistros",
 }: { data: Item[]; limit?: number; detail?: (name: string) => Item[]; detailTitle?: string } & Selecionavel) {
   const [hover, setHover] = useState<{ name: string; x: number; y: number } | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);

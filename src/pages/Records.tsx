@@ -138,7 +138,7 @@ export default function Records() {
       const ds = parseWorkbook(X, X.read(await f.arrayBuffer(), { type: "array" }));
       if (!ds.registros.length) return setToast("Nenhum registro encontrado na planilha (aba BASE)");
       const ac = ds.registros.filter((r) => r.categoria === "acidente").length;
-      if (!confirm(`Substituir a base atual por ${ac} acidentes, ${ds.registros.length - ac} incidentes internos e ${ds.taxas.length} meses de taxas?`)) return;
+      if (!confirm(`Substituir a base atual por ${ac} sinistros, ${ds.registros.length - ac} incidentes internos e ${ds.taxas.length} meses de taxas?`)) return;
       setToast("Importando… aguarde");
       const erro = await replaceAll(ds.taxas.length ? ds : { ...ds, taxas: data.taxas });
       setToast(erro ?? "Base importada");
@@ -170,7 +170,7 @@ export default function Records() {
       GRAVIDADE: r.gravidade, LESÃO: r.lesao, "DIAS PERDIDOS": r.diasPerdidos ?? "", "DIAS DEBITADOS": r.diasDebitados ?? "", CAT: r.cat, TRAJETO: r.trajeto,
     }));
     const wb = X.utils.book_new();
-    X.utils.book_append_sheet(wb, X.utils.json_to_sheet(linhas), categoria === "acidente" ? "Acidentes" : "Incidentes");
+    X.utils.book_append_sheet(wb, X.utils.json_to_sheet(linhas), categoria === "acidente" ? "Sinistros" : "Incidentes");
     X.writeFile(wb, `registros-${categoria}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
@@ -178,7 +178,7 @@ export default function Records() {
     <>
       <div className="topbar" style={{ gap: 10 }}>
         <div className="seg" role="group" aria-label="Tipo de registro">
-          <button className={categoria === "acidente" ? "on" : ""} onClick={() => { setCategoria("acidente"); setPagina(0); }}>Acidentes</button>
+          <button className={categoria === "acidente" ? "on" : ""} onClick={() => { setCategoria("acidente"); setPagina(0); }}>Sinistros</button>
           <button className={categoria === "incidente_interno" ? "on" : ""} onClick={() => { setCategoria("incidente_interno"); setPagina(0); }}>Incidentes internos</button>
         </div>
         <div className="search grow">

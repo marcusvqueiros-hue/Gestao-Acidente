@@ -105,7 +105,7 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
     <div className="overlay center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form className="modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="Registro">
         <div className="modal-head">
-          <h2>{inicial ? "Editar registro" : acidente ? "Novo acidente" : "Novo incidente interno"}</h2>
+          <h2>{inicial ? "Editar registro" : acidente ? "Novo sinistro" : "Novo incidente interno"}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
         </div>
 
@@ -172,7 +172,7 @@ export default function RecordForm({ inicial, categoria, onSave, onClose }: { in
                   <div className="field">
                     <label>Dias perdidos</label>
                     <input className="input" type="number" min={0} inputMode="numeric" value={f.diasPerdidos ?? ""} onChange={(e) => set("diasPerdidos", e.target.value === "" ? undefined : Number(e.target.value))} />
-                    <span className="hint">Dias corridos de afastamento, sem contar o dia do acidente nem o da volta.</span>
+                    <span className="hint">Dias corridos de afastamento, sem contar o dia do sinistro nem o da volta.</span>
                   </div>
                   <div className="field">
                     <label>Dias debitados</label>
