@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Calculator, TriangleAlert } from "lucide-react";
+import { Calculator, Camera, Download, TriangleAlert, X } from "lucide-react";
+import { toBlob } from "html-to-image";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { useFiltros } from "../lib/filters";
@@ -13,7 +14,7 @@ import { Grad } from "./Dashboard";
 
 type Campo = "tf" | "tfca" | "tg";
 
-function RateChart({ rows, campo, titulo, completo }: { rows: TaxaMes[]; campo: Campo; titulo: string; completo?: boolean }) {
+function RateChart({ rows, campo, titulo, completo, estatico }: { rows: TaxaMes[]; campo: Campo; titulo: string; completo?: boolean; estatico?: boolean }) {
   const { c } = useTheme();
   const axis = { fontSize: 12, fill: c.text };
   const multi = new Set(rows.map((t) => t.ano)).size > 1;
@@ -64,7 +65,7 @@ function RateChart({ rows, campo, titulo, completo }: { rows: TaxaMes[]; campo: 
                   )}
                 />
                 <ReferenceLine y={m} stroke={c.text} strokeDasharray="4 4" ifOverflow="visible" label={{ value: `Meta ${fmtNum(m, m % 1 ? 2 : 0)}`, position: "insideTopRight", fontSize: 11, fontWeight: 600, fill: c.text }} />
-                <Bar dataKey="plot" name={titulo} maxBarSize={38} minPointSize={2} radius={[8, 8, 0, 0]}>
+                <Bar isAnimationActive={!estatico} dataKey="plot" name={titulo} maxBarSize={38} minPointSize={2} radius={[8, 8, 0, 0]}>
                   {dados.map((r, i) => (
                     <Cell key={i} fill={r.v == null ? "transparent" : `url(#rt-${r.v > r.meta ? "bad" : "ok"})`} />
                   ))}
@@ -303,6 +304,93 @@ function Calculo({ acumulado }: { acumulado: boolean }) {
   );
 }
 
+const GRAFICOS: { campo: Campo; titulo: string; curto: string }[] = [
+  { campo: "tfca", titulo: "Taxa de frequência com afastamento (TFCA)", curto: "TFCA" },
+  { campo: "tf", titulo: "Taxa de frequência sem afastamento (TF)", curto: "TF" },
+  { campo: "tg", titulo: "Taxa de gravidade (TG)", curto: "TG" },
+];
+
+/** Fotografia dos gráficos de taxas: escolhe quais dos três, vê o preview e baixa cada um em PNG. */
+function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; completo: boolean; periodo: string; onClose: () => void }) {
+  const [sel, setSel] = useState<Campo[]>(["tfca", "tf", "tg"]);
+  const [ocupado, setOcupado] = useState(false);
+  const [msg, setMsg] = useState("");
+  const refs = useRef<Partial<Record<Campo, HTMLDivElement | null>>>({});
+
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => e.key === "Escape" && !ocupado && onClose();
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [onClose, ocupado]);
+
+  const alterna = (c: Campo) => setSel((l) => (l.includes(c) ? l.filter((x) => x !== c) : [...l, c]));
+  const lista = GRAFICOS.filter((g) => sel.includes(g.campo));
+
+  async function baixar() {
+    setOcupado(true);
+    try {
+      for (let i = 0; i < lista.length; i++) {
+        const g = lista[i];
+        const el = refs.current[g.campo];
+        if (!el) continue;
+        setMsg(`Gerando ${i + 1} de ${lista.length} — ${g.curto}`);
+        const blob = await toBlob(el, { pixelRatio: 2, cacheBust: true });
+        if (!blob) throw new Error("Não foi possível gerar a imagem");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `taxa-${g.campo}-${periodo}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      setMsg(`${lista.length} imagem(ns) baixada(s).`);
+    } catch (e) {
+      setMsg((e as Error).message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <div className="foto-back" role="dialog" aria-modal="true" aria-label="Fotografia das taxas" onMouseDown={(e) => e.target === e.currentTarget && !ocupado && onClose()}>
+      <div className="foto" style={{ width: "min(1100px, 100%)" }}>
+        <div className="foto-top">
+          <div>
+            <h3>Fotografia das taxas</h3>
+            <small>Só os gráficos, em PNG. Usa o período e o modo (acumulado/mensal, eixo) selecionados na página.</small>
+          </div>
+          <button className="icon-btn" onClick={onClose} disabled={ocupado} aria-label="Fechar"><X size={18} /></button>
+        </div>
+        <div className="foto-ctrl">
+          <div className="chips" role="group" aria-label="Gráficos a baixar">
+            {GRAFICOS.map((g) => (
+              <button key={g.campo} className={`chip ${sel.includes(g.campo) ? "on" : ""}`} aria-pressed={sel.includes(g.campo)} disabled={ocupado} onClick={() => alterna(g.campo)}>{g.curto}</button>
+            ))}
+          </div>
+          <div className="grow" />
+          <button className="btn primary" disabled={ocupado || !lista.length} onClick={baixar}>
+            <Download size={15} /> {lista.length > 1 ? `Baixar ${lista.length} imagens` : "Baixar PNG"}
+          </button>
+        </div>
+        {msg && <div className="foto-prog" role="status">{msg}</div>}
+        <div style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14, paddingRight: 4 }}>
+          {lista.length ? (
+            lista.map((g) => (
+              <div key={g.campo} ref={(el) => { refs.current[g.campo] = el; }} style={{ background: "var(--bg)", padding: 12, borderRadius: 14 }}>
+                <RateChart rows={rows} campo={g.campo} titulo={g.titulo} completo={completo} estatico />
+              </div>
+            ))
+          ) : (
+            <div className="empty">Marque ao menos um gráfico para ver o preview.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Rates() {
   const { data } = useData();
   const { anosTaxas } = useFiltros();
@@ -315,6 +403,7 @@ export default function Rates() {
     setAnosSel([anosTaxas[anosTaxas.length - 1]]);
   }, [anosTaxas]);
   const [completo, setCompleto] = useState(false);
+  const [foto, setFoto] = useState(false);
   const [acumulado, setAcumulado] = useState(true);
 
   const rows = useMemo(() => {
@@ -325,6 +414,7 @@ export default function Rates() {
       .filter((t) => (!mesesSel.length || mesesSel.includes(t.mes)) && (t.ano < hoje.getFullYear() || (t.ano === hoje.getFullYear() && t.mes <= hoje.getMonth() + 1)))
       .sort((a, b) => a.ano - b.ano || a.mes - b.mes);
   }, [data, anosSel, mesesSel, anosTaxas, acumulado]);
+  const periodoArquivo = `${anosSel.length ? [...anosSel].sort().join("-") : "todos-os-anos"}${mesesSel.length ? "_" + [...mesesSel].sort((a, b) => a - b).map((m) => MESES[m - 1].toLowerCase()).join("-") : ""}`;
   const alterna = <T,>(lista: T[], v: T) => (lista.includes(v) ? lista.filter((x) => x !== v) : [...lista, v]);
 
   return (
@@ -352,7 +442,9 @@ export default function Rates() {
           <button className={!completo ? "on" : ""} onClick={() => setCompleto(false)}>Eixo ajustado</button>
           <button className={completo ? "on" : ""} onClick={() => setCompleto(true)}>Eixo completo</button>
         </div>
+        <button className="btn" onClick={() => setFoto(true)} title="Fotografia dos gráficos de taxas"><Camera size={15} /> Fotografia</button>
       </div>
+      {foto && <FotoTaxas rows={rows} completo={completo} periodo={periodoArquivo} onClose={() => setFoto(false)} />}
       <div className="grid">
         <div className="s12"><RateChart rows={rows} campo="tfca" titulo="Taxa de frequência com afastamento (TFCA)" completo={completo} /></div>
         <div className="s12"><RateChart rows={rows} campo="tf" titulo="Taxa de frequência sem afastamento (TF)" completo={completo} /></div>
