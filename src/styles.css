@@ -92,7 +92,8 @@ h1, h2, h3, p { margin: 0; }
 .topbar h1 { font-size: 22px; letter-spacing: -0.02em; }
 .topbar p { color: var(--muted); margin-top: 2px; font-size: 13px; }
 .topbar .grow { flex: 1; min-width: 200px; }
-.menu-btn { display: none; }
+.menu-btn { display: grid; }
+@media (min-width: 901px) { .app.recolhido:not(.max) { grid-template-columns: 1fr; } .app.recolhido:not(.max) .sidebar { display: none; } }
 .scrim { display: none; }
 
 /* ---------- cards & grid ---------- */

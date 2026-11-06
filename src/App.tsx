@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Maximize2, Menu, Minimize2, Moon, Sun } from "lucide-react";
+import { Maximize2, Menu, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Sun } from "lucide-react";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { DataProvider, useData } from "./lib/store";
@@ -40,6 +40,33 @@ function Shell() {
   const [menu, setMenu] = useState(false);
   const [max, setMax] = useState(false);
   const [foto, setFoto] = useState(false);
+  const [recolhido, setRecolhido] = useState(() => {
+    try {
+      return localStorage.getItem("cgb.menu.recolhido") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [estreita, setEstreita] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    const on = () => setEstreita(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  // telas largas: minimiza/expande o menu fixo; celular e tela cheia: abre o menu como gaveta
+  const gaveta = estreita || max;
+  const botaoMenu = () => {
+    if (gaveta) return setMenu(true);
+    setRecolhido((v) => {
+      try {
+        localStorage.setItem("cgb.menu.recolhido", v ? "0" : "1");
+      } catch {
+        /* ignora */
+      }
+      return !v;
+    });
+  };
   const { mode, toggle } = useTheme();
 
   useEffect(() => {
@@ -94,13 +121,13 @@ function Shell() {
   };
 
   return (
-    <div className={`app ${max ? "max" : ""}`}>
+    <div className={`app ${max ? "max" : ""} ${recolhido ? "recolhido" : ""}`}>
       <Sidebar page={page} onNav={nav} open={menu} />
       <div className={`scrim ${menu ? "open" : ""}`} onClick={() => setMenu(false)} />
       <main className="main">
         <header className="topbar">
-          <button className="icon-btn menu-btn" onClick={() => setMenu(true)} aria-label="Abrir menu">
-            <Menu size={22} />
+          <button className="icon-btn menu-btn" onClick={botaoMenu} aria-label={gaveta ? "Abrir menu" : recolhido ? "Expandir menu" : "Minimizar menu"} title={gaveta ? "Abrir menu" : recolhido ? "Expandir menu" : "Minimizar menu"}>
+            {gaveta ? <Menu size={22} /> : recolhido ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
           <div className="grow">
             <h1>{TITULOS[page]}</h1>
