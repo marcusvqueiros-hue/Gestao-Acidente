@@ -14,7 +14,7 @@ import { Grad } from "./Dashboard";
 
 type Campo = "tf" | "tfca" | "tg";
 
-function RateChart({ rows, campo, titulo, completo, estatico }: { rows: TaxaMes[]; campo: Campo; titulo: string; completo?: boolean; estatico?: boolean }) {
+function RateChart({ rows, campo, titulo, completo, estatico, altura = 260 }: { rows: TaxaMes[]; campo: Campo; titulo: string; completo?: boolean; estatico?: boolean; altura?: number }) {
   const { c } = useTheme();
   const axis = { fontSize: 12, fill: c.text };
   const multi = new Set(rows.map((t) => t.ano)).size > 1;
@@ -46,7 +46,7 @@ function RateChart({ rows, campo, titulo, completo, estatico }: { rows: TaxaMes[
     <Card title={titulo} extra={comValor.length ? `${acima} de ${comValor.length} meses acima da meta` : undefined}>
       {dados.length ? (
         <>
-          <div style={{ height: 260 }}>
+          <div style={{ height: altura }}>
             <ResponsiveContainer>
               <BarChart data={dados} margin={{ top: 26, right: 8, left: -14, bottom: 0 }}>
                 <defs><Grad id="rt-ok" color={c.ok} /><Grad id="rt-bad" color={c.bad} /></defs>
@@ -316,6 +316,18 @@ function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; comp
   const [ocupado, setOcupado] = useState(false);
   const [msg, setMsg] = useState("");
   const refs = useRef<Partial<Record<Campo, HTMLDivElement | null>>>({});
+  const palco = useRef<HTMLDivElement>(null);
+  const [escala, setEscala] = useState(0.7);
+  // cada imagem é um slide 16:9 de 1280 × 720 (baixado em 1920 × 1080); o preview só reduz a escala
+  useEffect(() => {
+    const el = palco.current;
+    if (!el) return;
+    const ajustar = () => setEscala(Math.min(1, (el.clientWidth - 8) / 1280));
+    ajustar();
+    const ro = new ResizeObserver(ajustar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && !ocupado && onClose();
@@ -334,7 +346,7 @@ function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; comp
         const el = refs.current[g.campo];
         if (!el) continue;
         setMsg(`Gerando ${i + 1} de ${lista.length} — ${g.curto}`);
-        const blob = await toBlob(el, { pixelRatio: 2, cacheBust: true });
+        const blob = await toBlob(el, { width: 1280, height: 720, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, cacheBust: true });
         if (!blob) throw new Error("Não foi possível gerar a imagem");
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -359,7 +371,7 @@ function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; comp
         <div className="foto-top">
           <div>
             <h3>Fotografia das taxas</h3>
-            <small>Só os gráficos, em PNG. Usa o período e o modo (acumulado/mensal, eixo) selecionados na página.</small>
+            <small>Só os gráficos, em PNG 16:9 (1920 × 1080) para PowerPoint. Usa o período e o modo (acumulado/mensal, eixo) selecionados na página.</small>
           </div>
           <button className="icon-btn" onClick={onClose} disabled={ocupado} aria-label="Fechar"><X size={18} /></button>
         </div>
@@ -375,11 +387,15 @@ function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; comp
           </button>
         </div>
         {msg && <div className="foto-prog" role="status">{msg}</div>}
-        <div style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14, paddingRight: 4 }}>
+        <div ref={palco} style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingRight: 4 }}>
           {lista.length ? (
             lista.map((g) => (
-              <div key={g.campo} ref={(el) => { refs.current[g.campo] = el; }} style={{ background: "var(--bg)", padding: 12, borderRadius: 14 }}>
-                <RateChart rows={rows} campo={g.campo} titulo={g.titulo} completo={completo} estatico />
+              <div key={g.campo} className="foto-moldura" style={{ width: 1280 * escala, height: 720 * escala, flex: "none" }}>
+                <div ref={(el) => { refs.current[g.campo] = el; }} style={{ width: 1280, height: 720, padding: 28, background: "var(--bg)", boxSizing: "border-box", transform: `scale(${escala})`, transformOrigin: "top left", display: "flex", alignItems: "center" }}>
+                  <div style={{ width: "100%" }}>
+                    <RateChart rows={rows} campo={g.campo} titulo={g.titulo} completo={completo} estatico altura={480} />
+                  </div>
+                </div>
               </div>
             ))
           ) : (
