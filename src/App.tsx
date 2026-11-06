@@ -108,6 +108,7 @@ function Shell() {
           </div>
           <div className="top-actions">
             {page === "painel" && <FotoBotao onClick={() => setFoto(true)} />}
+            {page === "taxas" && <FotoBotao onClick={() => window.dispatchEvent(new Event("cgb:foto-taxas"))} />}
             <button className="icon-btn" onClick={toggle} aria-label={mode === "dark" ? "Tema claro" : "Tema escuro"} title={mode === "dark" ? "Tema claro" : "Tema escuro"}>
               {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>

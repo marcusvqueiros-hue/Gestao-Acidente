@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Calculator, Camera, Download, TriangleAlert, X } from "lucide-react";
+import { Calculator, Download, TriangleAlert, X } from "lucide-react";
 import { toBlob } from "html-to-image";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
@@ -420,6 +420,12 @@ export default function Rates() {
   }, [anosTaxas]);
   const [completo, setCompleto] = useState(false);
   const [foto, setFoto] = useState(false);
+  // o ícone de câmera fica no topo da página (como no Painel) e avisa por evento
+  useEffect(() => {
+    const abrir = () => setFoto(true);
+    window.addEventListener("cgb:foto-taxas", abrir);
+    return () => window.removeEventListener("cgb:foto-taxas", abrir);
+  }, []);
   const [acumulado, setAcumulado] = useState(true);
 
   const rows = useMemo(() => {
@@ -458,7 +464,6 @@ export default function Rates() {
           <button className={!completo ? "on" : ""} onClick={() => setCompleto(false)}>Eixo ajustado</button>
           <button className={completo ? "on" : ""} onClick={() => setCompleto(true)}>Eixo completo</button>
         </div>
-        <button className="btn" onClick={() => setFoto(true)} title="Fotografia dos gráficos de taxas"><Camera size={15} /> Fotografia</button>
       </div>
       {foto && <FotoTaxas rows={rows} completo={completo} periodo={periodoArquivo} onClose={() => setFoto(false)} />}
       <div className="grid">
