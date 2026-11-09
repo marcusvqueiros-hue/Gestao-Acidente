@@ -1,4 +1,4 @@
-import type { Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, Registro, Taxa } from "../types";
+import type { Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, NdgsMes, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { supabase } from "./supabase";
 import { colaboradorDeLinha } from "./colaboradores";
@@ -93,13 +93,14 @@ async function opcional(tabela: string, ordem: string[]): Promise<Linha[]> {
 }
 
 export async function carregarDataset(): Promise<Dataset> {
-  const [regs, taxas, expo, conf, eq, col] = await Promise.all([
+  const [regs, taxas, expo, conf, eq, col, nd] = await Promise.all([
     todas("registros", ["data", "id"]),
     todas("taxas", ["ano", "mes"]),
     opcional("exposicao", ["ano", "mes"]),
     opcional("configuracao", ["chave"]),
     opcional("equipes", ["prefixo"]),
     opcional("colaboradores", ["id"]),
+    opcional("ndgs", ["ano", "mes"]),
   ]);
   const cfg = conf.find((c) => c.chave === "taxas")?.valor as Partial<ConfigTaxas> | undefined;
   const marcas = [...regs, ...taxas].map((l) => l.atualizado_em as string).filter(Boolean);
@@ -108,6 +109,7 @@ export async function carregarDataset(): Promise<Dataset> {
     taxas: taxas.map(taxaDeLinha),
     equipes: eq.map((e) => ({ prefixo: e.prefixo, base: e.base ?? "", gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
     colaboradores: col.map(colaboradorDeLinha).filter((c): c is Colaborador => !!c),
+    ndgs: nd.map(ndgsDeLinha),
     exposicao: expo.map((e) => ({ ano: e.ano, mes: e.mes, horas: Number(e.horas) })),
     config: { ...CONFIG_PADRAO, ...(cfg ?? {}) },
     atualizadoEm: marcas.length ? marcas.reduce((a, b) => (a > b ? a : b)) : new Date().toISOString(),
@@ -145,6 +147,22 @@ export async function substituirTudo(d: Dataset): Promise<string | null> {
     if (r.error) return mensagem(r.error);
   }
   return null;
+}
+
+const num = (v: unknown) => (v == null ? null : Number(v));
+const ndgsDeLinha = (l: Linha): NdgsMes => ({ ano: l.ano, mes: l.mes, icad: num(l.icad), icit: num(l.icit), icia: num(l.icia), tfa: num(l.tfa), tga: num(l.tga), ipws: num(l.ipws), valor: num(l.valor) });
+const ndgsParaLinha = (m: NdgsMes): Linha => ({ ano: m.ano, mes: m.mes, icad: m.icad ?? null, icit: m.icit ?? null, icia: m.icia ?? null, tfa: m.tfa ?? null, tga: m.tga ?? null, ipws: m.ipws ?? null, valor: m.valor ?? null });
+
+/** Grava (insere ou atualiza) os meses do NDGS informados. */
+export async function gravarNdgs(lista: NdgsMes[]): Promise<string | null> {
+  if (!lista.length) return null;
+  const { error } = await db().from("ndgs").upsert(lista.map(ndgsParaLinha));
+  return mensagem(error);
+}
+
+export async function apagarNdgs(ano: number, mes: number): Promise<string | null> {
+  const { error } = await db().from("ndgs").delete().eq("ano", ano).eq("mes", mes);
+  return mensagem(error);
 }
 
 export async function gravarExposicao(e: Exposicao): Promise<string | null> {

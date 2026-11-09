@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Colaborador, ConfigTaxas, Dataset, Equipe, Registro, Taxa } from "../types";
+import type { Colaborador, ConfigTaxas, Dataset, Equipe, NdgsMes, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { definirEquipes } from "./equipes";
 import { definirColaboradores } from "./colaboradores";
-import { apagarRegistro, carregarDataset, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
+import { apagarNdgs, apagarRegistro, carregarDataset, gravarNdgs, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
 
 const KEY = "cgb.dataset.v1";
 const VAZIO = (): Dataset => ({ registros: [], taxas: [], exposicao: [], equipes: [], colaboradores: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() });
@@ -38,6 +38,9 @@ interface DataCtx {
   setExposicao: (ano: number, mes: number, horas: number) => Resultado;
   setConfig: (c: ConfigTaxas) => Resultado;
   setEquipes: (lista: Equipe[]) => Resultado;
+  /** insere ou atualiza meses do NDGS (só administrador) */
+  setNdgs: (lista: NdgsMes[]) => Resultado;
+  removeNdgs: (ano: number, mes: number) => Resultado;
   replaceAll: (d: Dataset) => Resultado;
   recarregar: () => Promise<void>;
 }
@@ -199,6 +202,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [admin, nuvem],
   );
 
+  const setNdgs = useCallback(
+    async (lista: NdgsMes[]): Resultado => {
+      if (!admin) return NEGADO;
+      if (nuvem) {
+        const e = await gravarNdgs(lista);
+        if (e) return e;
+      }
+      setData((d) => {
+        const resto = (d.ndgs ?? []).filter((x) => !lista.some((n) => n.ano === x.ano && n.mes === x.mes));
+        return { ...d, ndgs: [...resto, ...lista].sort((a, b) => a.ano - b.ano || a.mes - b.mes), atualizadoEm: agora() };
+      });
+      return null;
+    },
+    [admin, nuvem],
+  );
+
+  const removeNdgs = useCallback(
+    async (ano: number, mes: number): Resultado => {
+      if (!admin) return NEGADO;
+      if (nuvem) {
+        const e = await apagarNdgs(ano, mes);
+        if (e) return e;
+      }
+      setData((d) => ({ ...d, ndgs: (d.ndgs ?? []).filter((x) => !(x.ano === ano && x.mes === mes)), atualizadoEm: agora() }));
+      return null;
+    },
+    [admin, nuvem],
+  );
+
   const replaceAll = useCallback(
     async (d: Dataset): Resultado => {
       if (!admin) return NEGADO;
@@ -209,15 +241,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return e;
         }
       }
-      setData((atual) => ({ ...d, exposicao: atual.exposicao, equipes: atual.equipes, colaboradores: atual.colaboradores, config: atual.config, atualizadoEm: agora() }));
+      setData((atual) => ({ ...d, exposicao: atual.exposicao, equipes: atual.equipes, colaboradores: atual.colaboradores, ndgs: atual.ndgs, config: atual.config, atualizadoEm: agora() }));
       return null;
     },
     [admin, nuvem, recarregar],
   );
 
   const value = useMemo(
-    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar }),
-    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, replaceAll, recarregar],
+    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, replaceAll, recarregar }),
+    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, replaceAll, recarregar],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

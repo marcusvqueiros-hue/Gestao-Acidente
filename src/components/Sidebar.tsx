@@ -1,4 +1,4 @@
-import { Activity, ClipboardList, LayoutDashboard, LogOut, Scale, Users } from "lucide-react";
+import { Activity, ClipboardList, LayoutDashboard, LogOut, Scale, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useFiltros } from "../lib/filters";
 import { BASES, GERENCIAS, MESES } from "../types";
@@ -6,11 +6,12 @@ import { listaCoordenadores } from "../lib/coordenacao";
 import { listaGerentes } from "../lib/equipes";
 import { Chips, Logo } from "./ui";
 
-export type Page = "painel" | "taxas" | "comparativo" | "registros" | "usuarios";
+export type Page = "painel" | "taxas" | "ndgs" | "comparativo" | "registros" | "usuarios";
 
 const ITENS: { id: Page; label: string; icon: typeof Activity; admin?: boolean }[] = [
   { id: "painel", label: "Painel", icon: LayoutDashboard },
   { id: "taxas", label: "Taxas", icon: Activity },
+  { id: "ndgs", label: "NDGS", icon: ShieldCheck },
   { id: "comparativo", label: "Comparativo", icon: Scale },
   { id: "registros", label: "Registros", icon: ClipboardList, admin: true },
   { id: "usuarios", label: "Usuários", icon: Users, admin: true },

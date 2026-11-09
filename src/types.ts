@@ -103,12 +103,26 @@ export const CONFIG_PADRAO: ConfigTaxas = {
   incluirTrajeto: false,
 };
 
+/** Notas mensais do NDGS (frações de 0 a 1). `valor` é o NDGS oficial informado; sem ele, usa-se o calculado. */
+export interface NdgsMes {
+  ano: number;
+  mes: number;
+  icad?: number | null;
+  icit?: number | null;
+  icia?: number | null;
+  tfa?: number | null;
+  tga?: number | null;
+  ipws?: number | null;
+  valor?: number | null;
+}
+
 export interface Dataset {
   registros: Registro[];
   taxas: Taxa[]; // taxas importadas da planilha (histórico), usadas quando não há horas-homem
   exposicao: Exposicao[];
   equipes: Equipe[];
   colaboradores: Colaborador[];
+  ndgs?: NdgsMes[]; // Nível de Desenvolvimento Global de Segurança, por mês
   config: ConfigTaxas;
   atualizadoEm: string; // ISO
 }
