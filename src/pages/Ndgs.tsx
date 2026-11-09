@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { FileUp, Trash2 } from "lucide-react";
+import { Download, FileUp, Trash2, X } from "lucide-react";
+import { toBlob } from "html-to-image";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
-import { Card, ChartTip, Chips, Empty, Toast } from "../components/ui";
+import { Card, ChartTip, Chips, Empty, Logo, Toast } from "../components/ui";
 import { MESES, type NdgsMes } from "../types";
 import { COR_SITUACAO, IDS, INDICES, ROTULO_SITUACAO, calcularNdgs, lerPercentual, media, pct, situacao, valorDe, type IndiceId, type SerieId } from "../lib/ndgs";
 import { Grad } from "./Dashboard";
@@ -12,7 +13,27 @@ import { Grad } from "./Dashboard";
 const NOME: Record<SerieId, string> = { ndgs: "NDGS", icad: "ICAD", icit: "ICIT", icia: "ICIA", tfa: "TFA", tga: "TGA", ipws: "IPWS" };
 const MESES_COMPLETOS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-function Grafico({ meses, serie, className }: { meses: NdgsMes[]; serie: SerieId; className: string }) {
+const SERIES: SerieId[] = ["ndgs", ...IDS];
+
+function Medias({ meses }: { meses: NdgsMes[] }) {
+  return (
+    <div className="ndgs-kpis">
+      {SERIES.map((id) => {
+        const v = media(meses, id);
+        const s = v == null ? null : situacao(v);
+        return (
+          <div key={id} className="ndgs-kpi" style={{ ["--c" as string]: s ? COR_SITUACAO[s] : "var(--line)" }}>
+            <small>Média {NOME[id]}</small>
+            <b>{pct(v)}</b>
+            {s && <small>{ROTULO_SITUACAO[s]}</small>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Grafico({ meses, serie, className = "", altura = 240 }: { meses: NdgsMes[]; serie: SerieId; className?: string; altura?: number }) {
   const { c } = useTheme();
   const axis = { fontSize: 12, fill: c.text };
   const dados = meses
@@ -30,7 +51,7 @@ function Grafico({ meses, serie, className }: { meses: NdgsMes[]; serie: SerieId
   return (
     <Card title={NOME[serie]} className={className}>
       {dados.length ? (
-        <div style={{ height: 240 }}>
+        <div style={{ height: altura }}>
           <ResponsiveContainer>
             <BarChart data={dados} margin={{ top: 26, right: 4, left: 4, bottom: 0 }}>
               <defs>
@@ -92,6 +113,131 @@ function mesDe(v: unknown, SSF: { parse_date_code: (n: number) => { y: number; m
 }
 
 const pctTexto = (v: number | null | undefined) => (v == null ? "" : (v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2, useGrouping: false }));
+
+/** Fotografia 16:9 da aba NDGS: painel completo ou cada gráfico, com preview e download em PNG (1920 × 1080). */
+function FotoNdgs({ meses, ano, onClose }: { meses: NdgsMes[]; ano: number; onClose: () => void }) {
+  type Item = "painel" | SerieId;
+  const [sel, setSel] = useState<Item[]>(["painel"]);
+  const [ocupado, setOcupado] = useState(false);
+  const [msg, setMsg] = useState("");
+  const refs = useRef<Partial<Record<Item, HTMLDivElement | null>>>({});
+  const palco = useRef<HTMLDivElement>(null);
+  const [escala, setEscala] = useState(0.7);
+
+  useEffect(() => {
+    const el = palco.current;
+    if (!el) return;
+    const ajustar = () => setEscala(Math.min(1, (el.clientWidth - 8) / 1280));
+    ajustar();
+    const ro = new ResizeObserver(ajustar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => e.key === "Escape" && !ocupado && onClose();
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [onClose, ocupado]);
+
+  const itens: { id: Item; rotulo: string }[] = [{ id: "painel", rotulo: "Painel completo" }, ...SERIES.map((s) => ({ id: s as Item, rotulo: NOME[s] }))];
+  const lista = itens.filter((i) => sel.includes(i.id));
+  const alterna = (id: Item) => setSel((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+
+  async function baixar() {
+    setOcupado(true);
+    try {
+      for (let i = 0; i < lista.length; i++) {
+        const it = lista[i];
+        const el = refs.current[it.id];
+        if (!el) continue;
+        setMsg(`Gerando ${i + 1} de ${lista.length} — ${it.rotulo}`);
+        const blob = await toBlob(el, { width: 1280, height: 720, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, cacheBust: true });
+        if (!blob) throw new Error("Não foi possível gerar a imagem");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `ndgs-${it.id}-${ano}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      setMsg(`${lista.length} imagem(ns) baixada(s).`);
+    } catch (e) {
+      setMsg((e as Error).message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const painel = (
+    <div className="slide" style={{ width: 1280, height: 720 }}>
+      <div className="slide-in">
+        <header className="slide-head">
+          <Logo height={36} />
+          <div className="grow">
+            <h2>Nível de Desenvolvimento Global de Segurança — NDGS</h2>
+            <p>CGB Energia · {ano}</p>
+          </div>
+        </header>
+        <Medias meses={meses} />
+        <div className="grid">
+          <Grafico meses={meses} serie="ndgs" className="s6" altura={150} />
+          <Grafico meses={meses} serie="icad" className="s3" altura={150} />
+          <Grafico meses={meses} serie="icit" className="s3" altura={150} />
+          <Grafico meses={meses} serie="icia" className="s3" altura={150} />
+          <Grafico meses={meses} serie="ipws" className="s3" altura={150} />
+          <Grafico meses={meses} serie="tfa" className="s3" altura={150} />
+          <Grafico meses={meses} serie="tga" className="s3" altura={150} />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="foto-back" role="dialog" aria-modal="true" aria-label="Fotografia do NDGS" onMouseDown={(e) => e.target === e.currentTarget && !ocupado && onClose()}>
+      <div className="foto" style={{ width: "min(1100px, 100%)" }}>
+        <div className="foto-top">
+          <div>
+            <h3>Fotografia do NDGS</h3>
+            <small>PNG 16:9 (1920 × 1080) para PowerPoint, do ano {ano}. Escolha o painel completo e/ou gráficos individuais.</small>
+          </div>
+          <button className="icon-btn" onClick={onClose} disabled={ocupado} aria-label="Fechar"><X size={18} /></button>
+        </div>
+        <div className="foto-ctrl">
+          <div className="chips" role="group" aria-label="Imagens a baixar">
+            {itens.map((i) => (
+              <button key={i.id} className={`chip ${sel.includes(i.id) ? "on" : ""}`} aria-pressed={sel.includes(i.id)} disabled={ocupado} onClick={() => alterna(i.id)}>{i.rotulo}</button>
+            ))}
+          </div>
+          <div className="grow" />
+          <button className="btn primary" disabled={ocupado || !lista.length} onClick={baixar}>
+            <Download size={15} /> {lista.length > 1 ? `Baixar ${lista.length} imagens` : "Baixar PNG"}
+          </button>
+        </div>
+        {msg && <div className="foto-prog" role="status">{msg}</div>}
+        <div ref={palco} style={{ overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingRight: 4 }}>
+          {lista.length ? (
+            lista.map((it) => (
+              <div key={it.id} className="foto-moldura" style={{ width: 1280 * escala, height: 720 * escala, flex: "none" }}>
+                <div ref={(el) => { refs.current[it.id] = el; }} style={{ width: 1280, height: 720, background: "var(--bg)", transform: `scale(${escala})`, transformOrigin: "top left", boxSizing: "border-box", ...(it.id === "painel" ? {} : { padding: 28, display: "flex", alignItems: "center" }) }}>
+                  {it.id === "painel" ? painel : (
+                    <div style={{ width: "100%" }}>
+                      <Grafico meses={meses} serie={it.id} altura={480} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="empty">Marque ao menos uma imagem para ver o preview.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Ndgs() {
   const { data, setNdgs, removeNdgs } = useData();
@@ -218,10 +364,17 @@ export default function Ndgs() {
     setToast(e ?? "Mês excluído");
   }
 
-  const series: SerieId[] = ["ndgs", ...IDS];
+  const [foto, setFoto] = useState(false);
+  // o ícone de câmera fica no topo da página (como no Painel) e avisa por evento
+  useEffect(() => {
+    const abrir = () => setFoto(true);
+    window.addEventListener("cgb:foto-ndgs", abrir);
+    return () => window.removeEventListener("cgb:foto-ndgs", abrir);
+  }, []);
 
   return (
     <>
+      {foto && <FotoNdgs meses={doAno} ano={ano} onClose={() => setFoto(false)} />}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <Chips options={anos} selected={[ano]} onToggle={(a) => setAno(a)} />
         <div className="grow" />
@@ -234,19 +387,7 @@ export default function Ndgs() {
       </div>
       {lote && <div className="foto-prog" role="status" style={{ marginBottom: 12 }}>{lote}</div>}
 
-      <div className="ndgs-kpis">
-        {series.map((id) => {
-          const v = media(doAno, id);
-          const s = v == null ? null : situacao(v);
-          return (
-            <div key={id} className="ndgs-kpi" style={{ ["--c" as string]: s ? COR_SITUACAO[s] : "var(--line)" }}>
-              <small>Média {NOME[id]}</small>
-              <b>{pct(v)}</b>
-              {s && <small>{ROTULO_SITUACAO[s]}</small>}
-            </div>
-          );
-        })}
-      </div>
+      <Medias meses={doAno} />
 
       <div className="grid">
         <Grafico meses={doAno} serie="ndgs" className="s4" />

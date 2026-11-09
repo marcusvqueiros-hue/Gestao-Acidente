@@ -514,3 +514,6 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .ndgs-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: var(--c); }
 .ndgs-kpi small { color: var(--muted); font-size: 12px; }
 .ndgs-kpi b { font-size: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.slide .ndgs-kpis { gap: 10px; margin-bottom: 12px; }
+.slide .ndgs-kpi { padding: 8px 12px 8px 18px; }
+.slide .ndgs-kpi b { font-size: 22px; }
