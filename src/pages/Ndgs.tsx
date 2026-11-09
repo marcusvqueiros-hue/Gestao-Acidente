@@ -168,12 +168,13 @@ export default function Ndgs() {
       const nomeAba = wb.SheetNames.find((n) => chave(n) === "BASE") ?? wb.SheetNames[0];
       // o cabeçalho pode não estar na primeira linha da aba: procura a linha com MÊS e as colunas de nota
       const grade = X.utils.sheet_to_json<unknown[]>(wb.Sheets[nomeAba], { header: 1, defval: "" });
-      const cab = grade.findIndex((l) => l.map(chave).includes("MES") && l.map(chave).some((h) => h.startsWith("NOTA") || h === "VALOR"));
+      const chaves = (l: unknown[]) => l.map((h) => chave(String(h ?? "")));
+      const cab = grade.findIndex((l) => chaves(l).includes("MES") && chaves(l).some((h) => h.startsWith("NOTA") || h === "VALOR"));
       if (cab < 0) {
         setLote("Cabeçalho não encontrado. A planilha precisa das colunas MÊS, ANO, NOTA ICAD, NOTA ICIT, NOTA ICIA, NOTA TFA, NOTA TGA, NOTA IPWS e VALOR.");
         return;
       }
-      const titulos = grade[cab].map(chave);
+      const titulos = chaves(grade[cab]);
       const linhas = grade.slice(cab + 1).map((l) => Object.fromEntries(titulos.map((t, i) => [t, l[i]])) as Record<string, unknown>);
       const porMes = new Map<string, NdgsMes>();
       for (const l of linhas) {
