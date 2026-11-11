@@ -153,7 +153,7 @@ export default function Compare() {
           >
             <div style={{ height: 300 }}>
               <ResponsiveContainer>
-                <ComposedChart data={mensal} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
+                <ComposedChart key={sel.join("-")} data={mensal} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
                   <defs>{sel.map((a, i) => <Grad key={a} id={`m${a}`} color={corAno(i, sel.length)} />)}</defs>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="nome" tick={axis} axisLine={false} tickLine={false} />
@@ -183,7 +183,7 @@ export default function Compare() {
           >
             <div style={{ height: 280 }}>
               <ResponsiveContainer>
-                <LineChart data={taxasMes} margin={{ top: 26, right: 10, left: 10, bottom: 0 }}>
+                <LineChart key={sel.join("-")} data={taxasMes} margin={{ top: 26, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="nome" tick={axis} axisLine={false} tickLine={false} />
                   <YAxis hide scale={taxa === "tg" ? "sqrt" : "auto"} domain={[0, "auto"]} />
@@ -212,7 +212,7 @@ export default function Compare() {
             {dimData.length ? (
               <div style={{ height: 280 }}>
                 <ResponsiveContainer>
-                  <ComposedChart data={dimData} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
+                  <ComposedChart key={sel.join("-")} data={dimData} margin={{ top: 22, right: 6, left: 6, bottom: 0 }}>
                   <defs>{sel.map((a, i) => <Grad key={a} id={`d${a}`} color={corAno(i, sel.length)} />)}</defs>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="nome" tick={axis} axisLine={false} tickLine={false} interval={0} tickFormatter={(v: string) => (v.length > 9 ? v.slice(0, 8) + "…" : v)} />
