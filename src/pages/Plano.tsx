@@ -20,6 +20,24 @@ const FILTROS: { id: Filtro; rotulo: string }[] = [
   { id: "ATRASADO", rotulo: "Atrasadas" },
 ];
 
+/** Dica de gráfico: título, linhas com cor e uma linha final opcional (total). */
+function Dica({ active, titulo, linhas, rodape }: { active?: boolean; titulo?: string; linhas: { cor: string; nome: string; valor: string }[]; rodape?: string }) {
+  if (!active || !linhas.length) return null;
+  return (
+    <div className="tip">
+      {titulo && <b>{titulo}</b>}
+      {linhas.map((l) => (
+        <div key={l.nome}>
+          <i style={{ background: l.cor }} />
+          <span>{l.nome}</span>
+          <strong>{l.valor}</strong>
+        </div>
+      ))}
+      {rodape && <div style={{ opacity: 0.85 }}><span>{rodape}</span></div>}
+    </div>
+  );
+}
+
 const Selo = ({ sit }: { sit: SituacaoAcao }) => (
   <span className="badge" style={{ background: COR_SIT[sit] + "33", color: COR_SIT[sit], fontWeight: 700, whiteSpace: "nowrap" }}>{ROTULO_SIT[sit]}</span>
 );
@@ -85,8 +103,12 @@ export default function Plano() {
   const porBase = useMemo(() => {
     const bases = [...new Set([...BASES, ...ligadas.map((x) => x.a.base).filter(Boolean)])];
     return bases
-      .map((b) => ({ base: b, ...Object.fromEntries(SITUACOES.map((s) => [s, ligSit.filter((x) => x.a.base === b && x.sit === s).length])) }) as Record<string, number | string>)
-      .filter((d) => SITUACOES.some((s) => (d[s] as number) > 0));
+      .map((b) => {
+        const por = Object.fromEntries(SITUACOES.map((s) => [s, ligSit.filter((x) => x.a.base === b && x.sit === s).length])) as Record<SituacaoAcao, number>;
+        return { base: b, ...por, total: SITUACOES.reduce((t, s) => t + por[s], 0), topo: 0.001 } as Record<string, number | string>;
+      })
+      .filter((d) => (d.total as number) > 0)
+      .sort((a, b) => (b.total as number) - (a.total as number) || String(a.base).localeCompare(String(b.base)));
   }, [ligadas, ligSit]);
 
   const linhas = useMemo<Linha[]>(
@@ -188,7 +210,7 @@ export default function Plano() {
 
       <div className="ndgs-kpis">
         {([
-          { id: "todas", rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: `${base ? "base " + base : "todas as bases"} · clique para limpar` },
+          { id: "todas", rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: base ? `base ${base}` : "todas as bases" },
           { id: "CONCLUIDO", rotulo: "Concluídas", v: concluidas, cor: COR_SIT.CONCLUIDO, sub: `${pctConcl}% do total` },
           { id: "EM ANDAMENTO", rotulo: "Em andamento", v: cont("EM ANDAMENTO"), cor: COR_SIT["EM ANDAMENTO"], sub: "dentro do prazo" },
           { id: "PENDENTE", rotulo: "Pendentes", v: cont("PENDENTE"), cor: COR_SIT.PENDENTE, sub: "ainda não iniciadas" },
@@ -220,7 +242,14 @@ export default function Plano() {
                     <Pie data={donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={100} paddingAngle={2} cornerRadius={5} stroke="none" isAnimationActive={false} label={(p: any) => rotuloFatia(p)} labelLine={false} onClick={(d: any) => alterarFiltro((d?.sit ?? d?.payload?.sit) as Filtro)} style={{ cursor: "pointer" }}>
                       {donut.map((d) => <Cell key={d.sit} fill={COR_SIT[d.sit]} fillOpacity={filtro !== "todas" && filtro !== d.sit ? 0.3 : 1} />)}
                     </Pie>
-                    <Tooltip content={<ChartTip />} />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 20, pointerEvents: "none" }}
+                      offset={36}
+                      content={(p: any) => {
+                        const d = p.payload?.[0]?.payload;
+                        return d ? <Dica active={p.active} linhas={[{ cor: COR_SIT[d.sit as SituacaoAcao], nome: d.name, valor: `${d.value} (${Math.round((d.value / (total || 1)) * 100)}%)` }]} /> : null;
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="center">
@@ -250,14 +279,27 @@ export default function Plano() {
                 <BarChart data={porBase} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="base" tick={axis} axisLine={false} tickLine={false} />
-                  <YAxis hide allowDecimals={false} />
-                  <Tooltip cursor={{ fill: c.cursor, radius: 8 }} content={<ChartTip />} />
+                  <YAxis hide allowDecimals={false} domain={[0, (max: number) => Math.ceil(max * 1.18)]} />
+                  <Tooltip
+                    cursor={{ fill: c.cursor, radius: 8 }}
+                    wrapperStyle={{ zIndex: 20, pointerEvents: "none" }}
+                    content={(p: any) => {
+                      const row = p.payload?.[0]?.payload as Record<string, number | string> | undefined;
+                      if (!row) return null;
+                      const linhas = SITUACOES.filter((s) => (row[s] as number) > 0).map((s) => ({ cor: COR_SIT[s], nome: ROTULO_SIT[s], valor: String(row[s]) }));
+                      const conc = Math.round(((row.CONCLUIDO as number) / ((row.total as number) || 1)) * 100);
+                      return <Dica active={p.active} titulo={`Base ${row.base}`} linhas={linhas} rodape={`Total ${row.total} · ${conc}% concluído`} />;
+                    }}
+                  />
                   {SITUACOES.map((s) => (
                     <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false} style={{ cursor: "pointer" }} onClick={(d: any) => setBase((b) => (b === d?.base ? "" : d?.base))}>
                       {porBase.map((d) => <Cell key={String(d.base)} fill={COR_SIT[s]} fillOpacity={base && base !== d.base ? 0.3 : 1} />)}
                       <LabelList dataKey={s} position="center" formatter={(v: unknown) => (Number(v) ? String(v) : "")} fill="#1d1a1f" fontSize={11} fontWeight={700} />
                     </Bar>
                   ))}
+                  <Bar dataKey="topo" stackId="p" fill="transparent" isAnimationActive={false} legendType="none" tooltipType="none">
+                    <LabelList dataKey="total" position="top" offset={6} fill={c.text} fontSize={13} fontWeight={700} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
