@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Colaborador, ConfigTaxas, Dataset, Equipe, NdgsMes, Registro, Taxa } from "../types";
+import type { AcaoPlano, Colaborador, ConfigTaxas, Dataset, Equipe, NdgsMes, Registro, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { definirEquipes } from "./equipes";
 import { definirColaboradores } from "./colaboradores";
-import { apagarNdgs, apagarRegistro, carregarDataset, gravarNdgs, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
+import { apagarAcao, apagarNdgs, apagarRegistro, carregarDataset, gravarAcoes, gravarNdgs, gravarConfig, gravarEquipes, gravarExposicao, gravarRegistro, gravarTaxa, substituirTudo } from "./db";
 
 const KEY = "cgb.dataset.v1";
 const VAZIO = (): Dataset => ({ registros: [], taxas: [], exposicao: [], equipes: [], colaboradores: [], config: CONFIG_PADRAO, atualizadoEm: new Date().toISOString() });
@@ -41,6 +41,9 @@ interface DataCtx {
   /** insere ou atualiza meses do NDGS (só administrador) */
   setNdgs: (lista: NdgsMes[]) => Resultado;
   removeNdgs: (ano: number, mes: number) => Resultado;
+  /** insere ou atualiza ações do plano de ação (só administrador) */
+  setAcoes: (lista: AcaoPlano[]) => Resultado;
+  removeAcao: (id: string) => Resultado;
   replaceAll: (d: Dataset) => Resultado;
   recarregar: () => Promise<void>;
 }
@@ -231,6 +234,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [admin, nuvem],
   );
 
+  const setAcoes = useCallback(
+    async (lista: AcaoPlano[]): Resultado => {
+      if (!admin) return NEGADO;
+      if (nuvem) {
+        const e = await gravarAcoes(lista);
+        if (e) return e;
+      }
+      setData((d) => {
+        const resto = (d.acoes ?? []).filter((x) => !lista.some((n) => n.id === x.id));
+        return { ...d, acoes: [...resto, ...lista], atualizadoEm: agora() };
+      });
+      return null;
+    },
+    [admin, nuvem],
+  );
+
+  const removeAcao = useCallback(
+    async (id: string): Resultado => {
+      if (!admin) return NEGADO;
+      if (nuvem) {
+        const e = await apagarAcao(id);
+        if (e) return e;
+      }
+      setData((d) => ({ ...d, acoes: (d.acoes ?? []).filter((x) => x.id !== id), atualizadoEm: agora() }));
+      return null;
+    },
+    [admin, nuvem],
+  );
+
   const replaceAll = useCallback(
     async (d: Dataset): Resultado => {
       if (!admin) return NEGADO;
@@ -241,15 +273,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return e;
         }
       }
-      setData((atual) => ({ ...d, exposicao: atual.exposicao, equipes: atual.equipes, colaboradores: atual.colaboradores, ndgs: atual.ndgs, config: atual.config, atualizadoEm: agora() }));
+      setData((atual) => ({ ...d, exposicao: atual.exposicao, equipes: atual.equipes, colaboradores: atual.colaboradores, ndgs: atual.ndgs, acoes: atual.acoes, config: atual.config, atualizadoEm: agora() }));
       return null;
     },
     [admin, nuvem, recarregar],
   );
 
   const value = useMemo(
-    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, replaceAll, recarregar }),
-    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, replaceAll, recarregar],
+    () => ({ data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, setAcoes, removeAcao, replaceAll, recarregar }),
+    [data, carregando, erro, nuvem, addRegistro, updateRegistro, removeRegistro, setTaxa, setExposicao, setConfig, setEquipes, setNdgs, removeNdgs, setAcoes, removeAcao, replaceAll, recarregar],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

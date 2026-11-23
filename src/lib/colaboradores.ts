@@ -3,10 +3,10 @@ import type { Colaborador } from "../types";
 const GERENCIAS_POR_NOME: Record<string, string> = { ALMOXARIFE: "ALMOX", ALMOXARIFADO: "ALMOX", LOGISTICA: "LOG", "LOGÍSTICA": "LOG" };
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
-const limpa = (v: unknown) => (v == null ? "" : String(v).replace(/s+/g, " ").trim());
+const limpa = (v: unknown) => (v == null ? "" : String(v).replace(/\s+/g, " ").trim());
 
 /** Nome comparável: sem acento, maiúsculas e espaços únicos. */
-export const normNome = (n: string) => semAcento(n).toUpperCase().replace(/s+/g, " ").trim();
+export const normNome = (n: string) => semAcento(n).toUpperCase().replace(/\s+/g, " ").trim();
 
 let porNome = new Map<string, Colaborador>();
 export const definirColaboradores = (lista: Colaborador[]) => {

@@ -116,6 +116,23 @@ export interface NdgsMes {
   valor?: number | null;
 }
 
+export type SituacaoAcao = "CONCLUIDO" | "EM ANDAMENTO" | "PENDENTE" | "ATRASADO";
+
+/** Ação de melhoria do plano de ação de um sinistro (planilha "Plano de Ação"). */
+export interface AcaoPlano {
+  id: string;
+  registroId?: string | null; // sinistro de origem, quando a ação foi criada a partir dele
+  dataEvento: string; // AAAA-MM-DD
+  nome: string; // colaborador do sinistro
+  area: string; // áreas de controle
+  acao: string; // ação de melhoria
+  base: string;
+  responsavel: string;
+  prazo?: string | null; // data prevista de conclusão, AAAA-MM-DD
+  situacao: SituacaoAcao;
+  concluidoEm?: string | null; // AAAA-MM-DD
+}
+
 export interface Dataset {
   registros: Registro[];
   taxas: Taxa[]; // taxas importadas da planilha (histórico), usadas quando não há horas-homem
@@ -123,6 +140,7 @@ export interface Dataset {
   equipes: Equipe[];
   colaboradores: Colaborador[];
   ndgs?: NdgsMes[]; // Nível de Desenvolvimento Global de Segurança, por mês
+  acoes?: AcaoPlano[]; // plano de ação dos sinistros
   config: ConfigTaxas;
   atualizadoEm: string; // ISO
 }

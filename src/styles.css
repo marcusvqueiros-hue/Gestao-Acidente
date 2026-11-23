@@ -517,3 +517,10 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .slide .ndgs-kpis { gap: 10px; margin-bottom: 12px; }
 .slide .ndgs-kpi { padding: 8px 12px 8px 18px; }
 .slide .ndgs-kpi b { font-size: 22px; }
+
+/* Plano de ação: tabela editável compacta */
+.plano-tabela th { padding: 8px 6px; }
+.plano-tabela td { padding: 8px 6px; vertical-align: top; font-size: 13px; }
+.plano-tabela .input, .plano-tabela .select { font-size: 13px; padding: 6px 8px; }
+.plano-acoes { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 108px; }
+.plano-acoes .btn { padding: 5px 10px; justify-content: center; }

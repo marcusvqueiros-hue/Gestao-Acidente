@@ -1,4 +1,4 @@
-import type { Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, NdgsMes, Registro, Taxa } from "../types";
+import type { AcaoPlano, Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, NdgsMes, Registro, SituacaoAcao, Taxa } from "../types";
 import { CONFIG_PADRAO } from "../types";
 import { supabase } from "./supabase";
 import { colaboradorDeLinha } from "./colaboradores";
@@ -93,7 +93,7 @@ async function opcional(tabela: string, ordem: string[]): Promise<Linha[]> {
 }
 
 export async function carregarDataset(): Promise<Dataset> {
-  const [regs, taxas, expo, conf, eq, col, nd] = await Promise.all([
+  const [regs, taxas, expo, conf, eq, col, nd, ac] = await Promise.all([
     todas("registros", ["data", "id"]),
     todas("taxas", ["ano", "mes"]),
     opcional("exposicao", ["ano", "mes"]),
@@ -101,6 +101,7 @@ export async function carregarDataset(): Promise<Dataset> {
     opcional("equipes", ["prefixo"]),
     opcional("colaboradores", ["id"]),
     opcional("ndgs", ["ano", "mes"]),
+    opcional("plano_acoes", ["data_evento", "id"]),
   ]);
   const cfg = conf.find((c) => c.chave === "taxas")?.valor as Partial<ConfigTaxas> | undefined;
   const marcas = [...regs, ...taxas].map((l) => l.atualizado_em as string).filter(Boolean);
@@ -110,6 +111,7 @@ export async function carregarDataset(): Promise<Dataset> {
     equipes: eq.map((e) => ({ prefixo: e.prefixo, base: e.base ?? "", gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
     colaboradores: col.map(colaboradorDeLinha).filter((c): c is Colaborador => !!c),
     ndgs: nd.map(ndgsDeLinha),
+    acoes: ac.map(acaoDeLinha),
     exposicao: expo.map((e) => ({ ano: e.ano, mes: e.mes, horas: Number(e.horas) })),
     config: { ...CONFIG_PADRAO, ...(cfg ?? {}) },
     atualizadoEm: marcas.length ? marcas.reduce((a, b) => (a > b ? a : b)) : new Date().toISOString(),
@@ -152,6 +154,45 @@ export async function substituirTudo(d: Dataset): Promise<string | null> {
 const num = (v: unknown) => (v == null ? null : Number(v));
 const ndgsDeLinha = (l: Linha): NdgsMes => ({ ano: l.ano, mes: l.mes, icad: num(l.icad), icit: num(l.icit), icia: num(l.icia), tfa: num(l.tfa), tga: num(l.tga), ipws: num(l.ipws), valor: num(l.valor) });
 const ndgsParaLinha = (m: NdgsMes): Linha => ({ ano: m.ano, mes: m.mes, icad: m.icad ?? null, icit: m.icit ?? null, icia: m.icia ?? null, tfa: m.tfa ?? null, tga: m.tga ?? null, ipws: m.ipws ?? null, valor: m.valor ?? null });
+
+const acaoDeLinha = (l: Linha): AcaoPlano => ({
+  id: l.id,
+  registroId: l.registro_id ?? null,
+  dataEvento: l.data_evento,
+  nome: l.nome ?? "",
+  area: l.area ?? "",
+  acao: l.acao ?? "",
+  base: l.base ?? "",
+  responsavel: l.responsavel ?? "",
+  prazo: l.prazo ?? null,
+  situacao: (l.situacao ?? "PENDENTE") as SituacaoAcao,
+  concluidoEm: l.concluido_em ?? null,
+});
+const acaoParaLinha = (a: AcaoPlano): Linha => ({
+  id: a.id,
+  registro_id: a.registroId ?? null,
+  data_evento: a.dataEvento,
+  nome: a.nome,
+  area: a.area,
+  acao: a.acao,
+  base: a.base,
+  responsavel: a.responsavel,
+  prazo: a.prazo || null,
+  situacao: a.situacao,
+  concluido_em: a.concluidoEm || null,
+});
+
+/** Grava (insere ou atualiza) ações do plano de ação. */
+export async function gravarAcoes(lista: AcaoPlano[]): Promise<string | null> {
+  if (!lista.length) return null;
+  const { error } = await db().from("plano_acoes").upsert(lista.map(acaoParaLinha));
+  return mensagem(error);
+}
+
+export async function apagarAcao(id: string): Promise<string | null> {
+  const { error } = await db().from("plano_acoes").delete().eq("id", id);
+  return mensagem(error);
+}
 
 /** Grava (insere ou atualiza) os meses do NDGS informados. */
 export async function gravarNdgs(lista: NdgsMes[]): Promise<string | null> {
