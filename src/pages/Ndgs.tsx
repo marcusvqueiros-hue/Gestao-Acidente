@@ -230,12 +230,14 @@ function FotoNdgs({ meses, ano, onClose }: { meses: NdgsMes[]; ano: number; onCl
           {lista.length ? (
             lista.map((it) => (
               <div key={it.id} className="foto-moldura" style={{ width: 1280 * escala, height: 720 * escala, flex: "none" }}>
-                <div ref={(el) => { refs.current[it.id] = el; }} style={{ width: 1280, height: 720, background: "var(--bg)", transform: `scale(${escala})`, transformOrigin: "top left", boxSizing: "border-box", ...(it.id === "painel" ? {} : { padding: 28, display: "flex", alignItems: "center" }) }}>
+                <div style={{ width: 1280, height: 720, transform: `scale(${escala})`, transformOrigin: "top left" }}>
+                <div ref={(el) => { refs.current[it.id] = el; }} style={{ width: 1280, height: 720, background: "var(--bg)", boxSizing: "border-box", ...(it.id === "painel" ? {} : { padding: 28, display: "flex", alignItems: "center" }) }}>
                   {it.id === "painel" ? painel : (
                     <div style={{ width: "100%" }}>
                       <Grafico meses={meses} serie={it.id} altura={480} />
                     </div>
                   )}
+                </div>
                 </div>
               </div>
             ))

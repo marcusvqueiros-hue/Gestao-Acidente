@@ -391,10 +391,12 @@ function FotoTaxas({ rows, completo, periodo, onClose }: { rows: TaxaMes[]; comp
           {lista.length ? (
             lista.map((g) => (
               <div key={g.campo} className="foto-moldura" style={{ width: 1280 * escala, height: 720 * escala, flex: "none" }}>
-                <div ref={(el) => { refs.current[g.campo] = el; }} style={{ width: 1280, height: 720, padding: 28, background: "var(--bg)", boxSizing: "border-box", transform: `scale(${escala})`, transformOrigin: "top left", display: "flex", alignItems: "center" }}>
+                <div style={{ width: 1280, height: 720, transform: `scale(${escala})`, transformOrigin: "top left" }}>
+                <div ref={(el) => { refs.current[g.campo] = el; }} style={{ width: 1280, height: 720, padding: 28, background: "var(--bg)", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
                   <div style={{ width: "100%" }}>
                     <RateChart rows={rows} campo={g.campo} titulo={g.titulo} completo={completo} estatico altura={480} />
                   </div>
+                </div>
                 </div>
               </div>
             ))
