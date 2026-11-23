@@ -6,11 +6,11 @@ import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { fmtData } from "../lib/stats";
 import { Card, ChartTip, Chips, Empty, Toast } from "../components/ui";
-import { BASES, type AcaoPlano, type Registro, type SituacaoAcao } from "../types";
+import { BASES, MESES, type AcaoPlano, type Registro, type SituacaoAcao } from "../types";
 import { COR_SIT, ROTULO_SIT, SITUACOES, chaveAcao, hojeISO, lerPlanilha, novoIdAcao, situacaoEfetiva, sinistroDa } from "../lib/plano";
 
-type Linha = { tipo: "acao"; a: AcaoPlano; s?: Registro; sit: SituacaoAcao } | { tipo: "sem"; s: Registro };
-type Filtro = "todas" | SituacaoAcao | "SEM";
+type Linha = { a: AcaoPlano; s?: Registro; sit: SituacaoAcao };
+type Filtro = "todas" | SituacaoAcao;
 
 const FILTROS: { id: Filtro; rotulo: string }[] = [
   { id: "todas", rotulo: "Todas" },
@@ -18,12 +18,23 @@ const FILTROS: { id: Filtro; rotulo: string }[] = [
   { id: "EM ANDAMENTO", rotulo: "Em andamento" },
   { id: "PENDENTE", rotulo: "Pendentes" },
   { id: "ATRASADO", rotulo: "Atrasadas" },
-  { id: "SEM", rotulo: "Sinistros sem plano" },
 ];
 
 const Selo = ({ sit }: { sit: SituacaoAcao }) => (
   <span className="badge" style={{ background: COR_SIT[sit] + "33", color: COR_SIT[sit], fontWeight: 700, whiteSpace: "nowrap" }}>{ROTULO_SIT[sit]}</span>
 );
+
+/** Número da fatia dentro do anel, com cor de texto que contrasta com a fatia. */
+const rotuloFatia = (p: { cx: number; cy: number; midAngle: number; innerRadius: number; outerRadius: number; value: number; sit?: SituacaoAcao; payload?: { sit: SituacaoAcao } }) => {
+  const rad = Math.PI / 180;
+  const r = (p.innerRadius + p.outerRadius) / 2;
+  const sit = p.payload?.sit ?? p.sit ?? "CONCLUIDO";
+  return (
+    <text x={p.cx + r * Math.cos(-p.midAngle * rad)} y={p.cy + r * Math.sin(-p.midAngle * rad)} textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700} fill={sit === "EM ANDAMENTO" ? "#1d1a1f" : "#ffffff"} style={{ pointerEvents: "none" }}>
+      {p.value}
+    </text>
+  );
+};
 
 export default function Plano() {
   const { data, setAcoes, removeAcao } = useData();
@@ -73,23 +84,26 @@ export default function Plano() {
       .filter((d) => SITUACOES.some((s) => (d[s] as number) > 0));
   }, [ligadas]);
 
-  const linhas = useMemo<Linha[]>(() => {
-    const l: Linha[] = [
-      ...ligadas.map((x) => ({ tipo: "acao" as const, ...x })),
-      ...semPlano.map((s) => ({ tipo: "sem" as const, s })),
-    ];
-    const dataDe = (x: Linha) => (x.tipo === "acao" ? x.a.dataEvento : x.s.data);
-    const nomeDe = (x: Linha) => (x.tipo === "acao" ? x.a.nome : x.s.colaborador);
-    return l
-      .filter((x) => {
-        const b = x.tipo === "acao" ? x.a.base : x.s.base;
-        if (base && b !== base) return false;
-        if (filtro === "todas") return true;
-        if (filtro === "SEM") return x.tipo === "sem";
-        return x.tipo === "acao" && x.sit === filtro;
-      })
-      .sort((a, b) => dataDe(b).localeCompare(dataDe(a)) || nomeDe(a).localeCompare(nomeDe(b)));
-  }, [ligadas, semPlano, base, filtro]);
+  const linhas = useMemo<Linha[]>(
+    () =>
+      ligadas
+        .filter((x) => (!base || x.a.base === base) && (filtro === "todas" || x.sit === filtro))
+        .sort((a, b) => b.a.dataEvento.localeCompare(a.a.dataEvento) || a.a.nome.localeCompare(b.a.nome)),
+    [ligadas, base, filtro],
+  );
+
+  // sinistros sem plano de ação: tabela própria, com filtros próprios
+  const [sBase, setSBase] = useState("");
+  const [sMes, setSMes] = useState("");
+  const [sBusca, setSBusca] = useState("");
+  const semFiltrados = useMemo(() => {
+    const t = sBusca.trim().toLowerCase();
+    return semPlano
+      .filter((s) => (!sBase || s.base === sBase) && (!sMes || s.data.slice(5, 7) === sMes))
+      .filter((s) => !t || [s.colaborador, s.prefixo, s.caracteristica, s.tipo, s.processo].join(" ").toLowerCase().includes(t))
+      .sort((a, b) => b.data.localeCompare(a.data));
+  }, [semPlano, sBase, sMes, sBusca]);
+  const mesesSem = useMemo(() => [...new Set(semPlano.map((s) => s.data.slice(5, 7)))].sort(), [semPlano]);
 
   const valor = <K extends keyof AcaoPlano>(a: AcaoPlano, k: K): AcaoPlano[K] => (rascunho[a.id]?.[k] ?? a[k]) as AcaoPlano[K];
   const mudou = (a: AcaoPlano) => !!rascunho[a.id] && (Object.keys(rascunho[a.id]) as (keyof AcaoPlano)[]).some((k) => (rascunho[a.id][k] ?? "") !== (a[k] ?? ""));
@@ -187,21 +201,30 @@ export default function Plano() {
       <div className="grid">
         <Card title="Situação das ações" className="s5">
           {donut.length ? (
-            <div className="donut" style={{ height: 260 }}>
-              <ResponsiveContainer>
-                <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={100} paddingAngle={2} cornerRadius={5} stroke="none" isAnimationActive={false} label={({ value }: { value?: number }) => String(value ?? "")} labelLine={false}>
-                    {donut.map((d) => <Cell key={d.sit} fill={COR_SIT[d.sit]} />)}
-                  </Pie>
-                  <Tooltip content={<ChartTip />} />
-                  <Legend verticalAlign="bottom" iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, color: c.text }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="center" style={{ top: "36%" }}>
-                <b>{pctConcl}%</b>
-                <small>concluído</small>
+            <>
+              <div className="donut" style={{ height: 240 }}>
+                <ResponsiveContainer>
+                  <PieChart margin={{ top: 14, right: 14, bottom: 14, left: 14 }}>
+                    <Pie data={donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={100} paddingAngle={2} cornerRadius={5} stroke="none" isAnimationActive={false} label={(p: any) => rotuloFatia(p)} labelLine={false}>
+                      {donut.map((d) => <Cell key={d.sit} fill={COR_SIT[d.sit]} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="center">
+                  <b>{pctConcl}%</b>
+                  <small>concluído</small>
+                </div>
               </div>
-            </div>
+              <div className="legend">
+                {SITUACOES.map((s) => (
+                  <span key={s} className="leg-item" style={{ cursor: "default" }}>
+                    <i style={{ background: COR_SIT[s] }} />
+                    {ROTULO_SIT[s]} · {cont(s)}
+                  </span>
+                ))}
+              </div>
+            </>
           ) : (
             <Empty />
           )}
@@ -209,14 +232,14 @@ export default function Plano() {
 
         <Card title="Ações por base" className="s7">
           {porBase.length ? (
-            <div style={{ height: 260 }}>
+            <>
+            <div style={{ height: 240 }}>
               <ResponsiveContainer>
                 <BarChart data={porBase} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="base" tick={axis} axisLine={false} tickLine={false} />
                   <YAxis tick={axis} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip cursor={{ fill: c.cursor, radius: 8 }} content={<ChartTip />} />
-                  <Legend verticalAlign="bottom" iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, color: c.text }} />
                   {SITUACOES.map((s) => (
                     <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false}>
                       <LabelList dataKey={s} position="center" formatter={(v: unknown) => (Number(v) ? String(v) : "")} fill="#1d1a1f" fontSize={11} fontWeight={700} />
@@ -225,6 +248,15 @@ export default function Plano() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            <div className="legend">
+              {SITUACOES.map((s) => (
+                <span key={s} className="leg-item" style={{ cursor: "default" }}>
+                  <i style={{ background: COR_SIT[s] }} />
+                  {ROTULO_SIT[s]}
+                </span>
+              ))}
+            </div>
+            </>
           ) : (
             <Empty />
           )}
@@ -247,17 +279,6 @@ export default function Plano() {
                 </thead>
                 <tbody>
                   {linhas.map((x) => {
-                    if (x.tipo === "sem") {
-                      return (
-                        <tr key={"s" + x.s.id} style={{ background: "rgb(217 72 95 / 0.07)" }}>
-                          <td>{fmtData(x.s.data)}</td>
-                          <td><b>{x.s.colaborador}</b></td>
-                          <td colSpan={5} style={{ color: "var(--muted)" }}>Plano de ação ainda não cadastrado para este sinistro ({x.s.caracteristica || x.s.tipo || "—"})</td>
-                          <td><Selo sit="PENDENTE" /></td>
-                          {admin && <td><button className="btn" style={{ padding: "5px 12px" }} onClick={() => adicionar(x.s)}><Plus size={14} /> Adicionar ação</button></td>}
-                        </tr>
-                      );
-                    }
                     const a = x.a;
                     const m = mudou(a);
                     const sit = situacaoEfetiva({ ...a, situacao: valor(a, "situacao"), prazo: valor(a, "prazo") }, hoje);
@@ -324,6 +345,48 @@ export default function Plano() {
               <button className="btn primary" disabled={!pendentes.length} onClick={() => salvar(pendentes.map((a) => montar(a)), `${pendentes.length} ação(ões) salva(s)`)}>Salvar todas as alterações{pendentes.length ? ` (${pendentes.length})` : ""}</button>
               <small style={{ color: "var(--muted)" }}>Ações não concluídas com prazo vencido aparecem como atrasadas automaticamente. Concluir grava a data de hoje como conclusão.</small>
             </div>
+          )}
+        </Card>
+
+        <Card title="Sinistros sem plano de ação" extra={`${semFiltrados.length} de ${semPlano.length} sinistro(s)`} className="s12">
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+            <input className="input" style={{ flex: "1 1 280px", minWidth: 220 }} placeholder="Buscar por colaborador, prefixo, característica…" value={sBusca} onChange={(e) => setSBusca(e.target.value)} aria-label="Buscar sinistros sem plano" />
+            <select className="select" style={{ width: "auto", minWidth: 150 }} value={sMes} onChange={(e) => setSMes(e.target.value)} aria-label="Filtrar por mês">
+              <option value="">Mês: todos</option>
+              {mesesSem.map((m) => <option key={m} value={m}>{MESES[Number(m) - 1]}</option>)}
+            </select>
+            <select className="select" style={{ width: "auto", minWidth: 150 }} value={sBase} onChange={(e) => setSBase(e.target.value)} aria-label="Filtrar por base">
+              <option value="">Base: todas</option>
+              {BASES.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            {(sBusca || sMes || sBase) && <button className="btn" onClick={() => { setSBusca(""); setSMes(""); setSBase(""); }}>Limpar filtros</button>}
+          </div>
+          {semFiltrados.length ? (
+            <div className="table-wrap table-scroll" style={{ maxHeight: "60vh" }}>
+              <table className="plano-tabela" style={{ minWidth: 900 }}>
+                <thead>
+                  <tr>
+                    <th>Data do evento</th><th>Colaborador / equipe</th><th>Gerência</th><th>Base</th><th>Característica</th><th>Lesão</th>
+                    {admin && <th>Ações</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {semFiltrados.map((s) => (
+                    <tr key={s.id}>
+                      <td>{fmtData(s.data)}</td>
+                      <td><b>{s.colaborador}</b><br /><small style={{ color: "var(--muted)" }}>{s.prefixo}</small></td>
+                      <td>{s.processo}</td>
+                      <td>{s.base}</td>
+                      <td style={{ whiteSpace: "normal" }}>{s.caracteristica || s.tipo || "—"}</td>
+                      <td>{s.lesao}</td>
+                      {admin && <td><button className="btn" style={{ padding: "5px 12px" }} onClick={() => adicionar(s)}><Plus size={14} /> Adicionar ação</button></td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty />
           )}
         </Card>
       </div>
