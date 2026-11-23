@@ -5,6 +5,19 @@ export const SITUACOES: SituacaoAcao[] = ["CONCLUIDO", "EM ANDAMENTO", "PENDENTE
 export const ROTULO_SIT: Record<SituacaoAcao, string> = { CONCLUIDO: "Concluído", "EM ANDAMENTO": "Em andamento", PENDENTE: "Pendente", ATRASADO: "Atrasado" };
 export const COR_SIT: Record<SituacaoAcao, string> = { CONCLUIDO: "#22b45f", "EM ANDAMENTO": "#f2c200", PENDENTE: "#8a929b", ATRASADO: "#d9485f" };
 
+/** Campos que precisam estar preenchidos para a ação entrar no plano de ação dos sinistros. */
+export const CAMPOS_OBRIGATORIOS: { id: "nome" | "area" | "acao" | "base" | "responsavel" | "prazo"; rotulo: string }[] = [
+  { id: "nome", rotulo: "Nome" },
+  { id: "area", rotulo: "Áreas de controle" },
+  { id: "acao", rotulo: "Ação de melhoria" },
+  { id: "base", rotulo: "Base" },
+  { id: "responsavel", rotulo: "Responsável pela execução" },
+  { id: "prazo", rotulo: "Prazo de conclusão" },
+];
+
+export const faltando = (a: AcaoPlano): string[] => CAMPOS_OBRIGATORIOS.filter((c) => !String(a[c.id] ?? "").trim()).map((c) => c.rotulo);
+export const completa = (a: AcaoPlano) => faltando(a).length === 0;
+
 export const hojeISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
