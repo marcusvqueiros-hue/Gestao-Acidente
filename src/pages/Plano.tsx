@@ -71,18 +71,23 @@ export default function Plano() {
     return sinistros.filter((s) => !com.has(s.id));
   }, [ligadas, sinistros]);
 
-  const cont = (sit: SituacaoAcao) => ligadas.filter((x) => x.sit === sit).length;
-  const total = ligadas.length;
+  // cartões e rosca seguem a base escolhida; o gráfico por base segue a situação escolhida
+  const ligBase = useMemo(() => ligadas.filter((x) => !base || x.a.base === base), [ligadas, base]);
+  const ligSit = useMemo(() => ligadas.filter((x) => filtro === "todas" || x.sit === filtro), [ligadas, filtro]);
+  const semBase = useMemo(() => semPlano.filter((s) => !base || s.base === base), [semPlano, base]);
+  const cont = (sit: SituacaoAcao) => ligBase.filter((x) => x.sit === sit).length;
+  const total = ligBase.length;
   const concluidas = cont("CONCLUIDO");
   const pctConcl = total ? Math.round((concluidas / total) * 100) : 0;
+  const alterarFiltro = (f: Filtro) => setFiltro((atual) => (atual === f ? "todas" : f));
 
   const donut = SITUACOES.map((s) => ({ name: ROTULO_SIT[s], value: cont(s), sit: s })).filter((d) => d.value > 0);
   const porBase = useMemo(() => {
     const bases = [...new Set([...BASES, ...ligadas.map((x) => x.a.base).filter(Boolean)])];
     return bases
-      .map((b) => ({ base: b, ...Object.fromEntries(SITUACOES.map((s) => [s, ligadas.filter((x) => x.a.base === b && x.sit === s).length])) }) as Record<string, number | string>)
+      .map((b) => ({ base: b, ...Object.fromEntries(SITUACOES.map((s) => [s, ligSit.filter((x) => x.a.base === b && x.sit === s).length])) }) as Record<string, number | string>)
       .filter((d) => SITUACOES.some((s) => (d[s] as number) > 0));
-  }, [ligadas]);
+  }, [ligadas, ligSit]);
 
   const linhas = useMemo<Linha[]>(
     () =>
@@ -99,10 +104,10 @@ export default function Plano() {
   const semFiltrados = useMemo(() => {
     const t = sBusca.trim().toLowerCase();
     return semPlano
-      .filter((s) => (!sBase || s.base === sBase) && (!sMes || s.data.slice(5, 7) === sMes))
+      .filter((s) => (!(sBase || base) || s.base === (sBase || base)) && (!sMes || s.data.slice(5, 7) === sMes))
       .filter((s) => !t || [s.colaborador, s.prefixo, s.caracteristica, s.tipo, s.processo].join(" ").toLowerCase().includes(t))
       .sort((a, b) => b.data.localeCompare(a.data));
-  }, [semPlano, sBase, sMes, sBusca]);
+  }, [semPlano, sBase, base, sMes, sBusca]);
   const mesesSem = useMemo(() => [...new Set(semPlano.map((s) => s.data.slice(5, 7)))].sort(), [semPlano]);
 
   const valor = <K extends keyof AcaoPlano>(a: AcaoPlano, k: K): AcaoPlano[K] => (rascunho[a.id]?.[k] ?? a[k]) as AcaoPlano[K];
@@ -182,19 +187,26 @@ export default function Plano() {
       {lote && <div className="foto-prog" role="status" style={{ marginBottom: 12 }}>{lote}</div>}
 
       <div className="ndgs-kpis">
-        {[
-          { rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: `${sinistros.length} sinistro(s) em ${ano}` },
-          { rotulo: "Concluídas", v: concluidas, cor: COR_SIT.CONCLUIDO, sub: `${pctConcl}% do total` },
-          { rotulo: "Em andamento", v: cont("EM ANDAMENTO"), cor: COR_SIT["EM ANDAMENTO"], sub: "dentro do prazo" },
-          { rotulo: "Pendentes", v: cont("PENDENTE"), cor: COR_SIT.PENDENTE, sub: "ainda não iniciadas" },
-          { rotulo: "Atrasadas", v: cont("ATRASADO"), cor: COR_SIT.ATRASADO, sub: "prazo vencido" },
-          { rotulo: "Sinistros sem plano", v: semPlano.length, cor: semPlano.length ? COR_SIT.ATRASADO : COR_SIT.CONCLUIDO, sub: semPlano.length ? "cadastre as ações" : "todos com plano" },
-        ].map((k) => (
-          <div key={k.rotulo} className="ndgs-kpi" style={{ ["--c" as string]: k.cor }}>
+        {([
+          { id: "todas", rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: `${base ? "base " + base : "todas as bases"} · clique para limpar` },
+          { id: "CONCLUIDO", rotulo: "Concluídas", v: concluidas, cor: COR_SIT.CONCLUIDO, sub: `${pctConcl}% do total` },
+          { id: "EM ANDAMENTO", rotulo: "Em andamento", v: cont("EM ANDAMENTO"), cor: COR_SIT["EM ANDAMENTO"], sub: "dentro do prazo" },
+          { id: "PENDENTE", rotulo: "Pendentes", v: cont("PENDENTE"), cor: COR_SIT.PENDENTE, sub: "ainda não iniciadas" },
+          { id: "ATRASADO", rotulo: "Atrasadas", v: cont("ATRASADO"), cor: COR_SIT.ATRASADO, sub: "prazo vencido" },
+          { id: "SEM", rotulo: "Sinistros sem plano", v: semBase.length, cor: semBase.length ? COR_SIT.ATRASADO : COR_SIT.CONCLUIDO, sub: semBase.length ? "ver tabela abaixo" : "todos com plano" },
+        ] as { id: Filtro | "SEM"; rotulo: string; v: number; cor: string; sub: string }[]).map((k) => (
+          <button
+            key={k.rotulo}
+            type="button"
+            className={`ndgs-kpi clicavel ${k.id === filtro && k.id !== "todas" ? "ativo" : ""}`}
+            style={{ ["--c" as string]: k.cor }}
+            aria-pressed={k.id === filtro && k.id !== "todas"}
+            onClick={() => (k.id === "SEM" ? document.getElementById("plano-sem")?.scrollIntoView({ behavior: "smooth", block: "start" }) : k.id === "todas" ? setFiltro("todas") : alterarFiltro(k.id))}
+          >
             <small>{k.rotulo}</small>
             <b>{k.v}</b>
             <small>{k.sub}</small>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -205,8 +217,8 @@ export default function Plano() {
               <div className="donut" style={{ height: 240 }}>
                 <ResponsiveContainer>
                   <PieChart margin={{ top: 14, right: 14, bottom: 14, left: 14 }}>
-                    <Pie data={donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={100} paddingAngle={2} cornerRadius={5} stroke="none" isAnimationActive={false} label={(p: any) => rotuloFatia(p)} labelLine={false}>
-                      {donut.map((d) => <Cell key={d.sit} fill={COR_SIT[d.sit]} />)}
+                    <Pie data={donut} dataKey="value" nameKey="name" innerRadius={62} outerRadius={100} paddingAngle={2} cornerRadius={5} stroke="none" isAnimationActive={false} label={(p: any) => rotuloFatia(p)} labelLine={false} onClick={(d: any) => alterarFiltro((d?.sit ?? d?.payload?.sit) as Filtro)} style={{ cursor: "pointer" }}>
+                      {donut.map((d) => <Cell key={d.sit} fill={COR_SIT[d.sit]} fillOpacity={filtro !== "todas" && filtro !== d.sit ? 0.3 : 1} />)}
                     </Pie>
                     <Tooltip content={<ChartTip />} />
                   </PieChart>
@@ -216,12 +228,12 @@ export default function Plano() {
                   <small>concluído</small>
                 </div>
               </div>
-              <div className="legend">
+              <div className="legend plano-legenda">
                 {SITUACOES.map((s) => (
-                  <span key={s} className="leg-item" style={{ cursor: "default" }}>
+                  <button key={s} type="button" className={`leg-item ${filtro === s ? "on" : ""}`} style={{ opacity: filtro !== "todas" && filtro !== s ? 0.45 : 1 }} onClick={() => alterarFiltro(s)}>
                     <i style={{ background: COR_SIT[s] }} />
                     {ROTULO_SIT[s]} · {cont(s)}
-                  </span>
+                  </button>
                 ))}
               </div>
             </>
@@ -238,22 +250,23 @@ export default function Plano() {
                 <BarChart data={porBase} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
                   <XAxis dataKey="base" tick={axis} axisLine={false} tickLine={false} />
-                  <YAxis tick={axis} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis hide allowDecimals={false} />
                   <Tooltip cursor={{ fill: c.cursor, radius: 8 }} content={<ChartTip />} />
                   {SITUACOES.map((s) => (
-                    <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false}>
+                    <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false} style={{ cursor: "pointer" }} onClick={(d: any) => setBase((b) => (b === d?.base ? "" : d?.base))}>
+                      {porBase.map((d) => <Cell key={String(d.base)} fill={COR_SIT[s]} fillOpacity={base && base !== d.base ? 0.3 : 1} />)}
                       <LabelList dataKey={s} position="center" formatter={(v: unknown) => (Number(v) ? String(v) : "")} fill="#1d1a1f" fontSize={11} fontWeight={700} />
                     </Bar>
                   ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="legend">
+            <div className="legend plano-legenda">
               {SITUACOES.map((s) => (
-                <span key={s} className="leg-item" style={{ cursor: "default" }}>
+                <button key={s} type="button" className={`leg-item ${filtro === s ? "on" : ""}`} style={{ opacity: filtro !== "todas" && filtro !== s ? 0.45 : 1 }} onClick={() => alterarFiltro(s)}>
                   <i style={{ background: COR_SIT[s] }} />
                   {ROTULO_SIT[s]}
-                </span>
+                </button>
               ))}
             </div>
             </>
@@ -348,7 +361,8 @@ export default function Plano() {
           )}
         </Card>
 
-        <Card title="Sinistros sem plano de ação" extra={`${semFiltrados.length} de ${semPlano.length} sinistro(s)`} className="s12">
+        <div id="plano-sem" className="s12" style={{ scrollMarginTop: 16 }}>
+        <Card title="Sinistros sem plano de ação" extra={`${semFiltrados.length} de ${semPlano.length} sinistro(s)`}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
             <input className="input" style={{ flex: "1 1 280px", minWidth: 220 }} placeholder="Buscar por colaborador, prefixo, característica…" value={sBusca} onChange={(e) => setSBusca(e.target.value)} aria-label="Buscar sinistros sem plano" />
             <select className="select" style={{ width: "auto", minWidth: 150 }} value={sMes} onChange={(e) => setSMes(e.target.value)} aria-label="Filtrar por mês">
@@ -389,6 +403,7 @@ export default function Plano() {
             <Empty />
           )}
         </Card>
+        </div>
       </div>
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     </>

@@ -524,3 +524,8 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .plano-tabela .input, .plano-tabela .select { font-size: 13px; padding: 6px 8px; }
 .plano-acoes { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 108px; }
 .plano-acoes .btn { padding: 5px 10px; justify-content: center; }
+.ndgs-kpi.clicavel { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; transition: box-shadow 0.15s, transform 0.15s; }
+.ndgs-kpi.clicavel:hover { transform: translateY(-1px); }
+.ndgs-kpi.ativo { box-shadow: 0 0 0 2px var(--c); }
+.plano-legenda { flex-wrap: nowrap; gap: 4px; justify-content: center; }
+.plano-legenda .leg-item { padding: 4px 8px; white-space: nowrap; font-size: 12px; }
