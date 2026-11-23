@@ -39,9 +39,18 @@ function Grafico({ meses, serie, className = "", altura = 240 }: { meses: NdgsMe
   const dados = meses
     .map((m) => ({ nome: MESES[m.mes - 1], v: valorDe(m, serie) }))
     .filter((d): d is { nome: string; v: number } => d.v != null);
+  // gráficos estreitos (3 colunas): os rótulos ficam na vertical para não se sobreporem
+  const vertical = className.includes("s3");
   const rotulo = (p: any) => {
     const d = dados[p.index];
     if (!d) return null;
+    if (vertical) {
+      return (
+        <text transform={`translate(${p.x + p.width / 2},${p.y - 6}) rotate(-90)`} textAnchor="start" dominantBaseline="central" fontSize={10} fontWeight={700} fill={c.text}>
+          {pct(d.v)}
+        </text>
+      );
+    }
     return (
       <text x={p.x + p.width / 2} y={p.y - 7} textAnchor="middle" fontSize={11} fontWeight={700} fill={c.text}>
         {pct(d.v)}
@@ -53,13 +62,13 @@ function Grafico({ meses, serie, className = "", altura = 240 }: { meses: NdgsMe
       {dados.length ? (
         <div style={{ height: altura }}>
           <ResponsiveContainer>
-            <BarChart data={dados} margin={{ top: 26, right: 4, left: 4, bottom: 0 }}>
+            <BarChart data={dados} margin={{ top: vertical ? 44 : 26, right: 4, left: 4, bottom: 0 }}>
               <defs>
                 {(["atende", "parcial", "nao"] as const).map((s) => <Grad key={s} id={`nd-${serie}-${s}`} color={COR_SITUACAO[s]} />)}
               </defs>
               <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
               <XAxis dataKey="nome" tick={axis} axisLine={false} tickLine={false} interval={0} />
-              <YAxis hide domain={[0, 1.12]} />
+              <YAxis hide domain={[0, vertical ? 1.02 : 1.12]} />
               <Tooltip
                 cursor={{ fill: c.cursor, radius: 8 }}
                 content={(p: any) => (
@@ -183,13 +192,13 @@ function FotoNdgs({ meses, ano, onClose }: { meses: NdgsMes[]; ano: number; onCl
         </header>
         <Medias meses={meses} />
         <div className="grid">
-          <Grafico meses={meses} serie="ndgs" className="s6" altura={150} />
-          <Grafico meses={meses} serie="icad" className="s3" altura={150} />
-          <Grafico meses={meses} serie="icit" className="s3" altura={150} />
-          <Grafico meses={meses} serie="icia" className="s3" altura={150} />
-          <Grafico meses={meses} serie="ipws" className="s3" altura={150} />
-          <Grafico meses={meses} serie="tfa" className="s3" altura={150} />
-          <Grafico meses={meses} serie="tga" className="s3" altura={150} />
+          <Grafico meses={meses} serie="ndgs" className="s6" altura={185} />
+          <Grafico meses={meses} serie="icad" className="s3" altura={185} />
+          <Grafico meses={meses} serie="icit" className="s3" altura={185} />
+          <Grafico meses={meses} serie="icia" className="s3" altura={185} />
+          <Grafico meses={meses} serie="ipws" className="s3" altura={185} />
+          <Grafico meses={meses} serie="tfa" className="s3" altura={185} />
+          <Grafico meses={meses} serie="tga" className="s3" altura={185} />
         </div>
       </div>
     </div>
