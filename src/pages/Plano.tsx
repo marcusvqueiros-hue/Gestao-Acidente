@@ -183,13 +183,15 @@ export default function Plano() {
       .sort((a, b) => (b.total as number) - (a.total as number) || String(a.base).localeCompare(String(b.base)));
   }, [ligadas, ligSit]);
 
-  const linhas = useMemo<Linha[]>(
-    () =>
-      ligadas
-        .filter((x) => (!base || x.a.base === base) && (filtro === "todas" || x.sit === filtro))
-        .sort((a, b) => b.a.dataEvento.localeCompare(a.a.dataEvento) || a.a.nome.localeCompare(b.a.nome)),
-    [ligadas, base, filtro],
-  );
+  const [busca, setBusca] = useState("");
+  const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const linhas = useMemo<Linha[]>(() => {
+    const t = semAcento(busca.trim());
+    return ligadas
+      .filter((x) => (!base || x.a.base === base) && (filtro === "todas" || x.sit === filtro))
+      .filter((x) => !t || semAcento([x.a.nome, x.a.responsavel].join(" ")).includes(t))
+      .sort((a, b) => b.a.dataEvento.localeCompare(a.a.dataEvento) || a.a.nome.localeCompare(b.a.nome));
+  }, [ligadas, base, filtro, busca]);
 
   // sinistros sem plano de ação: tabela própria, com filtros próprios
   const [sBase, setSBase] = useState("");
@@ -410,10 +412,14 @@ export default function Plano() {
         </Card>
 
         <Card title="Plano de ação dos sinistros" extra={`${linhas.length} linha(s)`} className="s12">
-          <div className="seg" role="group" aria-label="Filtrar por situação" style={{ marginBottom: 12, flexWrap: "wrap" }}>
-            {FILTROS.map((f) => (
-              <button key={f.id} className={filtro === f.id ? "on" : ""} onClick={() => setFiltro(f.id)}>{f.rotulo}</button>
-            ))}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+            <div className="seg" role="group" aria-label="Filtrar por situação" style={{ flexWrap: "wrap" }}>
+              {FILTROS.map((f) => (
+                <button key={f.id} className={filtro === f.id ? "on" : ""} onClick={() => setFiltro(f.id)}>{f.rotulo}</button>
+              ))}
+            </div>
+            <input className="input" style={{ flex: "1 1 260px", minWidth: 220 }} placeholder="Buscar por nome ou responsável…" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar ações por nome" />
+            {busca && <button className="btn" onClick={() => setBusca("")}><X size={14} /> Limpar busca</button>}
           </div>
           {linhas.length ? (
             <div className="table-wrap table-scroll" style={{ maxHeight: "70vh" }}>
