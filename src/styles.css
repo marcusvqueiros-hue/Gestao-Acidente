@@ -533,3 +533,17 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .th-ord { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; text-transform: inherit; letter-spacing: inherit; font: inherit; color: inherit; }
 .th-ord:hover { color: var(--ink); }
 .th-ord:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+/* Plano de ação: ranking por coordenador */
+.plano-rank { display: flex; flex-direction: column; gap: 6px; }
+.plano-rank-linha { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 34px minmax(110px, 190px) 1fr 52px 64px 96px; align-items: center; gap: 14px; padding: 9px 12px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: background 0.15s; }
+.plano-rank-linha:hover { background: var(--brand-soft); }
+.plano-rank-linha.on { border-color: var(--brand); background: var(--brand-soft); }
+.plano-rank-linha:focus-visible { outline: 2px solid var(--brand); }
+.plano-rank-linha .pos { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.plano-rank-linha .nome { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plano-rank-linha .barra { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--line); }
+.plano-rank-linha .barra i { display: block; height: 100%; }
+.plano-rank-linha .pct { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.plano-rank-linha .qtd { color: var(--muted); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.plano-rank-linha .atr { font-size: 12px; font-weight: 700; text-align: right; }
+@media (max-width: 700px) { .plano-rank-linha { grid-template-columns: 28px 1fr 46px; } .plano-rank-linha .barra, .plano-rank-linha .qtd, .plano-rank-linha .atr { display: none; } }

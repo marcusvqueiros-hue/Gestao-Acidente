@@ -257,6 +257,20 @@ export default function Plano() {
   }, [ligadas, ligGer]);
   const gerencias = useMemo(() => [...new Set([...ligadas.map((x) => gerDe(x.s)), ...sinistros.map((sn) => gerDe(sn))])].sort(), [ligadas, sinistros]);
 
+  // ranking por coordenador: respeita tipo, base e gerência, mas não o próprio filtro de coordenador
+  const rankCoord = useMemo(() => {
+    const base0 = ligadasTodas.filter((x) => (!tipoF || tipoDe(x.a) === tipoF) && (!base || x.a.base === base) && (!gerF || gerDe(x.s) === gerF));
+    const nomes = [...new Set(base0.map((x) => coordDoSinistro(x.s)))];
+    return nomes
+      .map((n) => {
+        const l = base0.filter((x) => coordDoSinistro(x.s) === n);
+        const por = Object.fromEntries(SITUACOES.map((st) => [st, l.filter((x) => x.sit === st).length])) as Record<SituacaoAcao, number>;
+        const total = l.length;
+        return { nome: n, total, por, pct: total ? por.CONCLUIDO / total : 0 };
+      })
+      .sort((a, b) => b.pct - a.pct || b.total - a.total || a.nome.localeCompare(b.nome));
+  }, [ligadasTodas, tipoF, base, gerF]);
+
   const [busca, setBusca] = useState("");
   const chaveSinistro = (a: AcaoPlano, s?: Registro) => s?.id ?? `${a.dataEvento}|${a.nome}`;
   const acoesPorSinistro = useMemo(() => {
@@ -610,6 +624,30 @@ export default function Plano() {
               ))}
             </div>
             </>
+          ) : (
+            <Empty />
+          )}
+        </Card>
+
+        <Card title="Ranking por coordenador" extra="% de ações concluídas · clique para filtrar" className="s12">
+          {rankCoord.length ? (
+            <div className="plano-rank">
+              {rankCoord.map((c, i) => {
+                const ativo = coordF === c.nome;
+                return (
+                  <button key={c.nome} type="button" className={`plano-rank-linha ${ativo ? "on" : ""}`} style={{ opacity: coordF && !ativo ? 0.45 : 1 }} onClick={() => setCoordF((a) => (a === c.nome ? "" : c.nome))} aria-pressed={ativo}>
+                    <span className="pos">{i + 1}º</span>
+                    <span className="nome">{c.nome}</span>
+                    <span className="barra" aria-hidden>
+                      {SITUACOES.map((st) => (c.por[st] ? <i key={st} style={{ width: `${(c.por[st] / c.total) * 100}%`, background: COR_SIT[st] }} title={`${ROTULO_SIT[st]}: ${c.por[st]}`} /> : null))}
+                    </span>
+                    <span className="pct">{Math.round(c.pct * 100)}%</span>
+                    <span className="qtd">{c.por.CONCLUIDO}/{c.total}</span>
+                    <span className="atr" style={{ color: c.por.ATRASADO ? COR_SIT.ATRASADO : "var(--muted)" }}>{c.por.ATRASADO ? `${c.por.ATRASADO} atrasada${c.por.ATRASADO > 1 ? "s" : ""}` : "em dia"}</span>
+                  </button>
+                );
+              })}
+            </div>
           ) : (
             <Empty />
           )}
