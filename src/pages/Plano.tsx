@@ -7,6 +7,7 @@ import { useTheme } from "../lib/theme";
 import { fmtData } from "../lib/stats";
 import { Card, ChartTip, Chips, Empty, Toast } from "../components/ui";
 import { BASES, MESES, type AcaoPlano, type Registro, type SituacaoAcao, type TipoPlano } from "../types";
+import { coordenadorDe, listaCoordenadores, SEM_COORDENADOR } from "../lib/coordenacao";
 import { COR_SIT, ROTULO_SIT, SITUACOES, chaveAcao, completa, faltando, hojeISO, lerPlanilha, novoIdAcao, situacaoEfetiva, sinistroDa, ROTULO_TIPO, TIPOS_PLANO, tipoDe } from "../lib/plano";
 
 type Linha = { a: AcaoPlano; s?: Registro; sit: SituacaoAcao };
@@ -193,7 +194,13 @@ export default function Plano() {
   // só entram no plano as ações com todos os campos preenchidos; as demais ficam na tabela de sinistros sem plano
   const ligadasTodas = useMemo(() => doAno.filter(completa).map((a) => ({ a, s: sinistroDa(a, sinistros), sit: situacaoEfetiva(a, hoje) })), [doAno, sinistros, hoje]);
   const [tipoF, setTipoF] = useState<"" | TipoPlano>("");
-  const ligadas = useMemo(() => ligadasTodas.filter((x) => !tipoF || tipoDe(x.a) === tipoF), [ligadasTodas, tipoF]);
+  const [coordF, setCoordF] = useState("");
+  const coordDoSinistro = (s?: Registro) => (s ? coordenadorDe(s) : SEM_COORDENADOR);
+  const ligadas = useMemo(() => ligadasTodas.filter((x) => (!tipoF || tipoDe(x.a) === tipoF) && (!coordF || coordDoSinistro(x.s) === coordF)), [ligadasTodas, tipoF, coordF]);
+  const coordenadores = useMemo(() => {
+    const usados = new Set([...ligadasTodas.map((x) => coordDoSinistro(x.s)), ...sinistros.map((s) => coordDoSinistro(s))]);
+    return [...listaCoordenadores().filter((c) => usados.has(c)), ...(usados.has(SEM_COORDENADOR) ? [SEM_COORDENADOR] : [])];
+  }, [ligadasTodas, sinistros]);
   const semPlano = useMemo<SemLinha[]>(() => {
     const com = new Set(ligadasTodas.map((x) => x.s?.id).filter(Boolean));
     const rasc = doAno.filter((a) => !completa(a)).map((a) => ({ a, s: sinistroDa(a, sinistros) }));
@@ -217,7 +224,7 @@ export default function Plano() {
   const baseDe = (l: SemLinha) => l.s?.base ?? l.rasc?.base ?? "";
   const dataDe = (l: SemLinha) => l.s?.data ?? l.rasc?.dataEvento ?? "";
   const nomeDe = (l: SemLinha) => l.s?.colaborador ?? l.rasc?.nome ?? "";
-  const semBase = useMemo(() => semPlano.filter((l) => !base || baseDe(l) === base), [semPlano, base]);
+  const semBase = useMemo(() => semPlano.filter((l) => (!base || baseDe(l) === base) && (!coordF || coordDoSinistro(l.s) === coordF)), [semPlano, base, coordF]);
   const cont = (sit: SituacaoAcao) => ligBase.filter((x) => x.sit === sit).length;
   const total = ligBase.length;
   const concluidas = cont("CONCLUIDO");
@@ -274,7 +281,7 @@ export default function Plano() {
   const semFiltrados = useMemo(() => {
     const t = sBusca.trim().toLowerCase();
     const filtradas = semPlano
-      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes))
+      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes) && (!coordF || coordDoSinistro(l.s) === coordF))
       .filter((l) => !t || [nomeDe(l), l.s?.prefixo, l.s?.caracteristica, l.s?.tipo, l.s?.processo, l.rasc?.acao].join(" ").toLowerCase().includes(t));
     const valor = (l: SemLinha, col: string): string | number => {
       switch (col) {
@@ -287,7 +294,7 @@ export default function Plano() {
       }
     };
     return ordenar(filtradas, ordemSem, valor);
-  }, [semPlano, sBase, base, sMes, sBusca, ordemSem]);
+  }, [semPlano, sBase, base, sMes, sBusca, ordemSem, coordF]);
   const mesesSem = useMemo(() => [...new Set(semPlano.map((l) => dataDe(l).slice(5, 7)))].filter(Boolean).sort(), [semPlano]);
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
@@ -355,6 +362,7 @@ export default function Plano() {
       "ÁREAS DE CONTROLE": x.a.area,
       "AÇÃO DE MELHORIAS": x.a.acao,
       BASE: x.a.base,
+      COORDENADOR: coordDoSinistro(x.s),
       "RESPONSÁVEL PELA EXECUÇÃO": x.a.responsavel,
       "DATA PREVISTA DE EXECUÇÃO (Conclusão)": dt(x.a.prazo),
       "SITUAÇÃO ATUAL": x.sit,
@@ -375,7 +383,7 @@ export default function Plano() {
       ws["!cols"] = larguras.map((wch) => ({ wch }));
       return ws;
     };
-    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 12, 30, 70, 8, 34, 20, 16, 16]), "Plano de Ação");
+    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 12, 30, 70, 8, 16, 34, 20, 16, 16]), "Plano de Ação");
     X.utils.book_append_sheet(wb, folha(sem, [14, 34, 16, 12, 8, 50, 44]), "Sinistros sem plano");
     X.writeFile(wb, `plano-de-acao-${ano}.xlsx`);
     setToast(`Planilha exportada: ${plano.length} ação(ões) e ${sem.length} sinistro(s) sem plano`);
@@ -413,6 +421,10 @@ export default function Plano() {
         <select className="select" style={{ width: "auto", minWidth: 150 }} value={tipoF} onChange={(e) => setTipoF(e.target.value as "" | TipoPlano)} aria-label="Filtrar por tipo de plano">
           <option value="">Tipo: todos</option>
           {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+        </select>
+        <select className="select" style={{ width: "auto", minWidth: 170 }} value={coordF} onChange={(e) => setCoordF(e.target.value)} aria-label="Filtrar por coordenador">
+          <option value="">Coordenador: todos</option>
+          {coordenadores.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <select className="select" style={{ width: "auto", minWidth: 150 }} value={base} onChange={(e) => setBase(e.target.value)} aria-label="Filtrar por base">
           <option value="">Base: todas</option>
