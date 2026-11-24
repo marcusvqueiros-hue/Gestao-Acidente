@@ -591,7 +591,7 @@ export default function Plano() {
           )}
         </Card>
 
-        <Card title="Ações por gerência" className="s12">
+        <Card title="Ações por gerência" className="s6">
           {porGer.length ? (
             <>
             <div style={{ height: 240 }}>
@@ -637,7 +637,7 @@ export default function Plano() {
           )}
         </Card>
 
-        <Card title="Ranking por coordenador" extra="% de ações concluídas · clique para filtrar" className="s12">
+        <Card title="Ranking por coordenador" extra="% concluído · clique para filtrar" className="s6">
           {rankCoord.length ? (
             <div className="plano-rank">
               {rankCoord.map((c, i) => {

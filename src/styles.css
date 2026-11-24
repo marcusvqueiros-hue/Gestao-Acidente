@@ -535,7 +535,7 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .th-ord:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
 /* Plano de ação: ranking por coordenador */
 .plano-rank { display: flex; flex-direction: column; gap: 6px; }
-.plano-rank-linha { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 34px minmax(110px, 190px) 1fr 52px 64px 96px; align-items: center; gap: 14px; padding: 9px 12px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: background 0.15s; }
+.plano-rank-linha { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 30px minmax(90px, 150px) 1fr 46px 52px 84px; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: background 0.15s; }
 .plano-rank-linha:hover { background: var(--brand-soft); }
 .plano-rank-linha.on { border-color: var(--brand); background: var(--brand-soft); }
 .plano-rank-linha:focus-visible { outline: 2px solid var(--brand); }
