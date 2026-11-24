@@ -507,7 +507,7 @@ export default function Plano() {
       </div>
 
       <div className="grid">
-        <Card title="Situação das ações" className="s5">
+        <Card title="Situação das ações" className="s6">
           {donut.length ? (
             <>
               <div className="donut" style={{ height: 240 }}>
@@ -545,7 +545,7 @@ export default function Plano() {
           )}
         </Card>
 
-        <Card title="Ações por base" className="s7">
+        <Card title="Ações por base" className="s6">
           {porBase.length ? (
             <>
             <div style={{ height: 240 }}>
