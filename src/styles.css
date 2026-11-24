@@ -10,7 +10,7 @@
   --ok: #2e9e4f;
   --bad: #d63a4a;
   --radius: 14px;
-  --ink2: var(--ink2);
+  --ink2: #3d3842;
   --hover: #faf8fa;
   --shadow: 0 1px 2px rgb(30 20 40 / 0.04), 0 4px 16px rgb(30 20 40 / 0.04);
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
