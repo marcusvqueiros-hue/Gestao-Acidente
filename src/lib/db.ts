@@ -1,5 +1,5 @@
 import type { AcaoPlano, Colaborador, ConfigTaxas, Dataset, Equipe, Exposicao, NdgsMes, Registro, SituacaoAcao, Taxa } from "../types";
-import { CONFIG_PADRAO } from "../types";
+import { CONFIG_PADRAO, normBase } from "../types";
 import { supabase } from "./supabase";
 import { colaboradorDeLinha } from "./colaboradores";
 
@@ -19,7 +19,7 @@ export const paraLinha = (r: Registro): Linha => ({
   colaborador: r.colaborador ?? "",
   prefixo: r.prefixo ?? "",
   processo: r.processo ?? "",
-  base: r.base ?? "",
+  base: normBase(r.base),
   cidade: r.cidade ?? "",
   supervisor: r.supervisor ?? "",
   tipo: r.tipo ?? "",
@@ -47,7 +47,7 @@ export const deLinha = (l: Linha): Registro => ({
   colaborador: l.colaborador ?? "",
   prefixo: l.prefixo ?? "",
   processo: l.processo ?? "",
-  base: l.base ?? "",
+  base: normBase(l.base),
   cidade: l.cidade ?? "",
   supervisor: l.supervisor ?? "",
   tipo: l.tipo ?? "",
@@ -108,7 +108,7 @@ export async function carregarDataset(): Promise<Dataset> {
   return {
     registros: regs.map(deLinha),
     taxas: taxas.map(taxaDeLinha),
-    equipes: eq.map((e) => ({ prefixo: e.prefixo, base: e.base ?? "", gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
+    equipes: eq.map((e) => ({ prefixo: e.prefixo, base: normBase(e.base), gerencia: e.gerencia ?? "", coordenador: e.coordenador ?? "", gerente: e.gerente ?? "" })),
     colaboradores: col.map(colaboradorDeLinha).filter((c): c is Colaborador => !!c),
     ndgs: nd.map(ndgsDeLinha),
     acoes: ac.map(acaoDeLinha),
@@ -162,7 +162,7 @@ const acaoDeLinha = (l: Linha): AcaoPlano => ({
   nome: l.nome ?? "",
   area: l.area ?? "",
   acao: l.acao ?? "",
-  base: l.base ?? "",
+  base: normBase(l.base),
   responsavel: l.responsavel ?? "",
   prazo: l.prazo ?? null,
   situacao: (l.situacao ?? "PENDENTE") as SituacaoAcao,
@@ -175,7 +175,7 @@ const acaoParaLinha = (a: AcaoPlano): Linha => ({
   nome: a.nome,
   area: a.area,
   acao: a.acao,
-  base: a.base,
+  base: normBase(a.base),
   responsavel: a.responsavel,
   prazo: a.prazo || null,
   situacao: a.situacao,

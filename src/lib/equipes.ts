@@ -1,5 +1,5 @@
 import type * as XLSXNS from "xlsx";
-import type { Equipe, Registro } from "../types";
+import { normBase, type Equipe, type Registro } from "../types";
 
 /** Prefixo comparável: maiúsculas, sem espaços nas pontas nem ponto final (ex.: "MA-PDS-P004M." → "MA-PDS-P004M"). */
 export const normPrefixo = (p: string) => p.trim().toUpperCase().replace(/\.+$/, "");
@@ -60,7 +60,7 @@ export function parseEquipes(X: typeof XLSXNS, wb: XLSXNS.WorkBook, coordenadore
     const ger = campo(o, "GERENCIA").toUpperCase();
     vistos.set(prefixo, {
       prefixo,
-      base: BASES_POR_NOME[semAcento(base)] ?? base,
+      base: normBase(BASES_POR_NOME[semAcento(base)] ?? base),
       gerencia: GERENCIAS_POR_NOME[ger] ?? ger,
       coordenador: nome(campo(o, "COORDENADOR")),
       gerente: campo(o, "GERENTE"),

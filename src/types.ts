@@ -3,7 +3,12 @@ export type Lesao = (typeof LESOES)[number];
 
 export const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 export const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-export const BASES = ["BCB", "BDC", "PDS", "PDT", "ITM", "STI", "SIT"];
+export const BASES = ["BCB", "BDC", "PDS", "PDT", "ITM", "STI"];
+/** "SIT" era um erro de digitação de STI (Santa Inês): toda base passa por aqui. */
+export const normBase = (b: string | null | undefined) => {
+  const v = String(b ?? "").trim();
+  return v.toUpperCase() === "SIT" ? "STI" : v;
+};
 export const GERENCIAS = ["ALMOX", "ADM", "LOG", "SPOT", "SESMT", "GERE", "GOMAN", "GSTC", "FROTA"];
 export const TIPOS = ["TÍPICO", "SINIS. TRÂNSITO", "PRI. SOCORROS", "INCIDENTE", "OUTROS"];
 export const TURNOS = ["MANHÃ", "TARDE", "NOITE"];

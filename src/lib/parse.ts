@@ -1,6 +1,6 @@
 import type * as XLSXNS from "xlsx";
 import type { Acao, Dataset, Registro, Taxa } from "../types";
-import { CONFIG_PADRAO } from "../types";
+import { CONFIG_PADRAO, normBase } from "../types";
 import { DIAS } from "../types";
 
 type X = typeof XLSXNS;
@@ -91,7 +91,7 @@ export function parseWorkbook(X: X, wb: XLSXNS.WorkBook): Dataset {
       colaborador: clean(o["NOME DO COLABORADOR"]),
       prefixo: clean(o["PREFIXO"]),
       processo: PROCESSOS[clean(o["PROCESSO"]).toUpperCase()] ?? clean(o["PROCESSO"]).toUpperCase(),
-      base: clean(o["BASE"]).toUpperCase(),
+      base: normBase(clean(o["BASE"]).toUpperCase()),
       cidade: clean(o["CIDADE"]),
       supervisor: clean(o["SUPERVISOR"]),
       tipo: clean(o["TIPO"]).toUpperCase(),
@@ -119,7 +119,7 @@ export function parseWorkbook(X: X, wb: XLSXNS.WorkBook): Dataset {
       colaborador: clean(o["NOME DO COLABORADOR"]),
       prefixo: clean(o["PREFIXO"]),
       processo: PROCESSOS[clean(o["PROCESSO"]).toUpperCase()] ?? clean(o["PROCESSO"]).toUpperCase(),
-      base: clean(o["BASE"]).toUpperCase(),
+      base: normBase(clean(o["BASE"]).toUpperCase()),
       cidade: clean(o["CIDADE"]),
       supervisor: clean(o["SUPERVISOR"]),
       tipo: clean(o["TIPO"]).toUpperCase().replace("VEICULO", "VEÍCULO").replace("DANO AO VEÍCULO", "DANO A VEÍCULO"),

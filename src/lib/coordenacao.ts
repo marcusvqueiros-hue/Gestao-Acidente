@@ -3,7 +3,7 @@ import { equipeDe, listaCoordenadoresEquipes } from "./equipes";
 
 /** Quem coordena cada gerência/base. Regra de negócio informada pela empresa: ajuste aqui quando mudar. */
 const REGRAS: { gerencia: string; bases?: string[]; coordenador: string }[] = [
-  { gerencia: "GOMAN", bases: ["BCB", "STI", "SIT", "ITM"], coordenador: "Luis C." },
+  { gerencia: "GOMAN", bases: ["BCB", "STI", "ITM"], coordenador: "Luis C." },
   { gerencia: "GOMAN", bases: ["PDS"], coordenador: "Thiago F." },
   { gerencia: "GOMAN", bases: ["PDT"], coordenador: "Rafaela" },
   { gerencia: "GOMAN", bases: ["BDC"], coordenador: "Jackson" },
