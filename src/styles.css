@@ -529,3 +529,4 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .ndgs-kpi.ativo { box-shadow: 0 0 0 2px var(--c); }
 .plano-legenda { flex-wrap: nowrap; gap: 4px; justify-content: center; }
 .plano-legenda .leg-item { padding: 4px 8px; white-space: nowrap; font-size: 12px; }
+.plano-tabela tbody tr.clicavel:hover { background: var(--brand-soft); }

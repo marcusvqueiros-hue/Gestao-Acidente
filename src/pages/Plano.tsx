@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, Download, FileUp, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Download, FileUp, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
@@ -41,7 +41,7 @@ function Dica({ active, titulo, linhas, rodape }: { active?: boolean; titulo?: s
 }
 
 /** Formulário do plano de ação: a ação só entra no plano quando todos os campos obrigatórios estão preenchidos. */
-function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; novo: boolean; areas: string[]; onSalvar: (a: AcaoPlano, outra: boolean) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
+function FormAcao({ inicial, novo, existente, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; novo: boolean; existente: boolean; areas: string[]; onSalvar: (a: AcaoPlano, outra: boolean) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
   const [f, setF] = useState<AcaoPlano>(inicial);
   const [salvando, setSalvando] = useState(false);
   const set = <K extends keyof AcaoPlano>(k: K, v: AcaoPlano[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -56,6 +56,13 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
     setSalvando(false);
   }
 
+  async function mudarSituacao(situacao: SituacaoAcao) {
+    if (falta.length || salvando) return;
+    setSalvando(true);
+    await onSalvar({ ...f, situacao, concluidoEm: situacao === "CONCLUIDO" ? f.concluidoEm || hojeISO() : null }, false);
+    setSalvando(false);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     void enviar(false);
@@ -65,7 +72,7 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
     <div className="overlay center" onMouseDown={(e) => e.target === e.currentTarget && onFechar()}>
       <form className="modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label="Plano de ação">
         <div className="modal-head">
-          <h2>{novo ? "Novo plano de ação" : "Completar plano de ação"}</h2>
+          <h2>{novo ? "Novo plano de ação" : existente ? "Editar plano de ação" : "Completar plano de ação"}</h2>
           <button type="button" className="icon-btn" onClick={onFechar} aria-label="Fechar"><X size={20} /></button>
         </div>
         <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>Preencha todos os campos: a ação só sobe para a tabela "Plano de ação dos sinistros" quando estiver completa. Um sinistro pode ter quantas ações forem necessárias.</p>
@@ -95,10 +102,15 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn primary" disabled={!!falta.length || salvando}>{salvando ? "Salvando…" : "Incluir no plano de ação"}</button>
+          <button className="btn primary" disabled={!!falta.length || salvando}>{salvando ? "Salvando…" : existente ? "Salvar alterações" : "Incluir no plano de ação"}</button>
+          {existente && (inicial.situacao !== "CONCLUIDO" ? (
+            <button type="button" className="btn" disabled={!!falta.length || salvando} onClick={() => void mudarSituacao("CONCLUIDO")}><Check size={14} /> Concluir ação</button>
+          ) : (
+            <button type="button" className="btn" disabled={!!falta.length || salvando} onClick={() => void mudarSituacao("EM ANDAMENTO")}><RotateCcw size={14} /> Reabrir ação</button>
+          ))}
           <button type="button" className="btn" disabled={!!falta.length || salvando} onClick={() => void enviar(true)}><Plus size={14} /> Incluir e adicionar outra ação</button>
           <button type="button" className="btn" onClick={onFechar}>Cancelar</button>
-          {onExcluir && <button type="button" className="btn" onClick={onExcluir}><Trash2 size={14} /> Descartar rascunho</button>}
+          {onExcluir && <button type="button" className="btn" onClick={onExcluir}><Trash2 size={14} /> {existente ? "Excluir ação" : "Descartar rascunho"}</button>}
           <small style={{ color: falta.length ? "var(--bad)" : "var(--muted)" }}>{falta.length ? `Faltam: ${falta.join(", ")}` : "Tudo preenchido."}</small>
         </div>
       </form>
@@ -145,8 +157,6 @@ export default function Plano() {
   const [lote, setLote] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const arquivo = useRef<HTMLInputElement>(null);
-  const [rascunho, setRascunho] = useState<Record<string, Partial<AcaoPlano>>>({});
-  useEffect(() => setRascunho({}), [ano]);
 
   // sinistros do ano e ações ligadas a eles
   const sinistros = useMemo(() => data.registros.filter((r) => r.categoria === "acidente" && r.data.startsWith(String(ano))), [data.registros, ano]);
@@ -227,12 +237,13 @@ export default function Plano() {
   const mesesSem = useMemo(() => [...new Set(semPlano.map((l) => dataDe(l).slice(5, 7)))].filter(Boolean).sort(), [semPlano]);
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
-  const [form, setForm] = useState<{ acao: AcaoPlano; novo: boolean } | null>(null);
+  const [form, setForm] = useState<{ acao: AcaoPlano; novo: boolean; existente: boolean } | null>(null);
   const abrirNova = (o: { registroId?: string | null; dataEvento: string; nome: string; base: string; tipo?: TipoPlano }) =>
-    setForm({ novo: true, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", tipo: o.tipo ?? "RIAI", concluidoEm: null } });
+    setForm({ novo: true, existente: false, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", tipo: o.tipo ?? "RIAI", concluidoEm: null } });
+  const abrirEditar = (a: AcaoPlano) => admin && setForm({ novo: false, existente: true, acao: a });
   const abrirLinha = (l: SemLinha) => {
     if (!admin) return;
-    if (l.rasc) return setForm({ novo: false, acao: l.rasc });
+    if (l.rasc) return setForm({ novo: false, existente: false, acao: l.rasc });
     if (l.s) abrirNova({ registroId: l.s.id, dataEvento: l.s.data, nome: l.s.colaborador, base: l.s.base });
   };
 
@@ -251,27 +262,6 @@ export default function Plano() {
     return n > 1 ? <small style={{ display: "block", color: "var(--muted)", marginTop: 4 }}>Ação {posicoes[i]} de {n} do sinistro</small> : null;
   };
 
-  const valor = <K extends keyof AcaoPlano>(a: AcaoPlano, k: K): AcaoPlano[K] => (rascunho[a.id]?.[k] ?? a[k]) as AcaoPlano[K];
-  const mudou = (a: AcaoPlano) => !!rascunho[a.id] && (Object.keys(rascunho[a.id]) as (keyof AcaoPlano)[]).some((k) => (rascunho[a.id][k] ?? "") !== (a[k] ?? ""));
-  const editar = (a: AcaoPlano, parte: Partial<AcaoPlano>) => setRascunho((r) => ({ ...r, [a.id]: { ...r[a.id], ...parte } }));
-  const pendentes = ligadas.map((x) => x.a).filter(mudou);
-
-  const montar = (a: AcaoPlano, extra: Partial<AcaoPlano> = {}): AcaoPlano => {
-    const m: AcaoPlano = { ...a, ...rascunho[a.id], ...extra };
-    if (m.situacao === "CONCLUIDO") m.concluidoEm = m.concluidoEm || hoje;
-    else m.concluidoEm = null;
-    if (!m.prazo) m.prazo = null;
-    return m;
-  };
-
-  async function salvar(lista: AcaoPlano[], msg: string) {
-    const incompleta = lista.find((a) => !completa(a));
-    if (incompleta) return setToast(`Preencha todos os campos antes de salvar: faltam ${faltando(incompleta).join(", ")}`);
-    const e = await setAcoes(lista);
-    if (e) return setToast(e);
-    setRascunho((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !lista.some((a) => a.id === k))));
-    setToast(msg);
-  }
 
   async function incluir(a: AcaoPlano, outra: boolean) {
     const e = await setAcoes([a]);
@@ -281,8 +271,9 @@ export default function Plano() {
       setToast("Ação incluída no plano. Cadastre a próxima ação deste sinistro");
       return;
     }
+    const atualizou = form?.existente;
     setForm(null);
-    setToast("Ação incluída no plano de ação dos sinistros");
+    setToast(atualizou ? "Ação atualizada" : "Ação incluída no plano de ação dos sinistros");
   }
 
   async function descartar(a: AcaoPlano) {
@@ -295,6 +286,7 @@ export default function Plano() {
   async function excluir(a: AcaoPlano) {
     if (!confirm("Excluir esta ação do plano?")) return;
     const e = await removeAcao(a.id);
+    setForm(null);
     setToast(e ?? "Ação excluída");
   }
 
@@ -505,7 +497,7 @@ export default function Plano() {
           </div>
           {linhas.length ? (
             <div className="table-wrap table-scroll" style={{ maxHeight: "70vh" }}>
-              <table className="plano-tabela" style={{ minWidth: 1290 }}>
+              <table className="plano-tabela" style={{ minWidth: 1120 }}>
                 <thead>
                   <tr>
                     {colunas.map((t) => <th key={t}>{t}</th>)}
@@ -515,79 +507,32 @@ export default function Plano() {
                 <tbody>
                   {linhas.map((x, i) => {
                     const a = x.a;
-                    const m = mudou(a);
-                    const sit = situacaoEfetiva({ ...a, situacao: valor(a, "situacao"), prazo: valor(a, "prazo") }, hoje);
                     return (
-                      <tr key={a.id}>
-                        {admin ? (
-                          <>
-                            <td><input className="input" type="date" value={valor(a, "dataEvento")} onChange={(e) => editar(a, { dataEvento: e.target.value })} style={{ width: 128 }} aria-label="Data do evento" />{marca(x, i)}</td>
-                            <td>
-                              <select className="select" value={tipoDe({ tipo: valor(a, "tipo") })} onChange={(e) => editar(a, { tipo: e.target.value as TipoPlano })} style={{ width: 108 }} aria-label="Tipo do plano">
-                                {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
-                              </select>
-                            </td>
-                            <td><input className="input" value={valor(a, "nome")} onChange={(e) => editar(a, { nome: e.target.value })} style={{ width: 150 }} aria-label="Nome" /></td>
-                            <td><input className="input" list="plano-areas" value={valor(a, "area")} onChange={(e) => editar(a, { area: e.target.value })} style={{ width: 140 }} aria-label="Áreas de controle" /></td>
-                            <td><textarea className="input" rows={3} value={valor(a, "acao")} onChange={(e) => editar(a, { acao: e.target.value })} style={{ width: 250, resize: "vertical" }} aria-label="Ação de melhoria" /></td>
-                            <td>
-                              <select className="select" value={valor(a, "base")} onChange={(e) => editar(a, { base: e.target.value })} style={{ width: 72 }} aria-label="Base">
-                                <option value="">—</option>
-                                {[...new Set([...BASES, valor(a, "base")])].filter(Boolean).map((b) => <option key={b} value={b}>{b}</option>)}
-                              </select>
-                            </td>
-                            <td><input className="input" value={valor(a, "responsavel")} onChange={(e) => editar(a, { responsavel: e.target.value })} style={{ width: 150 }} aria-label="Responsável pela execução" /></td>
-                            <td><input className="input" type="date" value={valor(a, "prazo") ?? ""} onChange={(e) => editar(a, { prazo: e.target.value || null })} style={{ width: 128 }} aria-label="Prazo de conclusão" /></td>
-                            <td>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-                                <select className="select" value={valor(a, "situacao") === "ATRASADO" ? "EM ANDAMENTO" : valor(a, "situacao")} onChange={(e) => editar(a, { situacao: e.target.value as SituacaoAcao })} style={{ width: 130 }} aria-label="Situação atual">
-                                  {(["CONCLUIDO", "EM ANDAMENTO", "PENDENTE"] as SituacaoAcao[]).map((s) => <option key={s} value={s}>{ROTULO_SIT[s]}</option>)}
-                                </select>
-                                {sit === "ATRASADO" && <Selo sit="ATRASADO" />}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="plano-acoes">
-                                {a.situacao !== "CONCLUIDO" ? (
-                                  <button className="btn primary" onClick={() => salvar([montar(a, { situacao: "CONCLUIDO" })], "Ação concluída")} title="Marcar como concluída"><Check size={14} /> Concluir</button>
-                                ) : (
-                                  <button className="btn" onClick={() => salvar([montar(a, { situacao: "EM ANDAMENTO" })], "Ação reaberta")} title="Reabrir a ação"><RotateCcw size={14} /> Reabrir</button>
-                                )}
-                                <button className={`btn ${m ? "primary" : ""}`} disabled={!m || !completa(montar(a))} title={m && !completa(montar(a)) ? `Faltam: ${faltando(montar(a)).join(", ")}` : undefined} onClick={() => salvar([montar(a)], "Ação salva")}>Salvar</button>
-                                <button className="btn" onClick={() => abrirNova({ registroId: a.registroId ?? x.s?.id ?? null, dataEvento: a.dataEvento, nome: a.nome, base: a.base, tipo: tipoDe(a) })} title="Cadastrar outra ação para este sinistro"><Plus size={14} /> Nova ação</button>
-                                <button className="btn" onClick={() => excluir(a)} title="Excluir a ação"><Trash2 size={14} /> Excluir</button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td>{fmtData(a.dataEvento)}{marca(x, i)}</td>
-                            <td><b>{a.nome}</b></td>
-                            <td>{ROTULO_TIPO[tipoDe(a)]}</td>
-                            <td>{a.area}</td>
-                            <td style={{ minWidth: 300, whiteSpace: "normal" }}>{a.acao}</td>
-                            <td>{a.base}</td>
-                            <td>{a.responsavel}</td>
-                            <td>{a.prazo ? fmtData(a.prazo) : "—"}</td>
-                            <td><Selo sit={sit} /></td>
-                          </>
+                      <tr key={a.id} onClick={() => abrirEditar(a)} className={admin ? "clicavel" : undefined} style={{ cursor: admin ? "pointer" : "default" }} title={admin ? "Clique para editar este plano" : undefined}>
+                        <td style={{ whiteSpace: "nowrap" }}>{fmtData(a.dataEvento)}{marca(x, i)}</td>
+                        <td><b>{a.nome}</b></td>
+                        <td><span className="badge" style={{ background: a.tipo === "QUADRANTE" ? "#3fb6c433" : "var(--brand-soft)", color: a.tipo === "QUADRANTE" ? "#3fb6c4" : "var(--brand)", fontWeight: 700 }}>{ROTULO_TIPO[tipoDe(a)]}</span></td>
+                        <td style={{ whiteSpace: "normal" }}>{a.area}</td>
+                        <td style={{ whiteSpace: "normal", minWidth: 300 }}>{a.acao}</td>
+                        <td>{a.base}</td>
+                        <td style={{ whiteSpace: "normal" }}>{a.responsavel}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{a.prazo ? fmtData(a.prazo) : "—"}</td>
+                        <td><Selo sit={x.sit} /></td>
+                        {admin && (
+                          <td>
+                            <button className="btn" style={{ padding: "5px 12px" }} onClick={(e) => { e.stopPropagation(); abrirEditar(a); }}><Pencil size={14} /> Editar</button>
+                          </td>
                         )}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <datalist id="plano-areas">{areas.map((a) => <option key={a} value={a} />)}</datalist>
             </div>
           ) : (
             <Empty />
           )}
-          {admin && (
-            <div className="calc-fill">
-              <button className="btn primary" disabled={!pendentes.length} onClick={() => salvar(pendentes.map((a) => montar(a)), `${pendentes.length} ação(ões) salva(s)`)}>Salvar todas as alterações{pendentes.length ? ` (${pendentes.length})` : ""}</button>
-              <small style={{ color: "var(--muted)" }}>Ações não concluídas com prazo vencido aparecem como atrasadas automaticamente. Concluir grava a data de hoje como conclusão.</small>
-            </div>
-          )}
+          {admin && <p className="hint-inline" style={{ marginTop: 10 }}>Clique em uma linha para editar o plano. Ações não concluídas com prazo vencido aparecem como atrasadas automaticamente; concluir grava a data de hoje.</p>}
         </Card>
 
         <div id="plano-sem" className="s12" style={{ scrollMarginTop: 16 }}>
@@ -641,7 +586,7 @@ export default function Plano() {
         </Card>
         </div>
       </div>
-      {form && <FormAcao key={form.acao.id} inicial={form.acao} novo={form.novo} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => descartar(form.acao)} onFechar={() => setForm(null)} />}
+      {form && <FormAcao key={form.acao.id} inicial={form.acao} novo={form.novo} existente={form.existente} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => (form.existente ? excluir(form.acao) : descartar(form.acao))} onFechar={() => setForm(null)} />}
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     </>
   );
