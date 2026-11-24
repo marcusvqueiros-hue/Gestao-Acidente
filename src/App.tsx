@@ -14,6 +14,7 @@ import { FiltroTags } from "./components/ui";
 import Rates from "./pages/Rates";
 import Ndgs from "./pages/Ndgs";
 import Plano from "./pages/Plano";
+import Insights from "./pages/Insights";
 import Compare from "./pages/Compare";
 import Records from "./pages/Records";
 import Users from "./pages/Users";
@@ -23,6 +24,7 @@ const TITULOS: Record<Page, string> = {
   taxas: "Taxas de frequência e gravidade",
   ndgs: "Nível de Desenvolvimento Global de Segurança (NDGS)",
   plano: "Plano de ação dos sinistros",
+  insights: "Insights para reduzir sinistros",
   comparativo: "Comparativo entre anos",
   registros: "Registro de sinistros",
   usuarios: "Usuários e perfis",
@@ -156,12 +158,13 @@ function Shell() {
           </div>
         )}
         {carregando && !erro && <div className="note" role="status">Carregando dados…</div>}
-        {page !== "taxas" && page !== "ndgs" && page !== "plano" && <FiltroTags />}
+        {page !== "taxas" && page !== "ndgs" && page !== "plano" && page !== "insights" && <FiltroTags />}
         {page === "painel" && <Dashboard />}
         {foto && page === "painel" && <Foto onClose={() => setFoto(false)} />}
         {page === "taxas" && <Rates />}
         {page === "ndgs" && <Ndgs />}
         {page === "plano" && <Plano />}
+        {page === "insights" && <Insights />}
         {page === "comparativo" && <Compare />}
         {page === "registros" && admin && <Records />}
         {page === "usuarios" && admin && <Users />}

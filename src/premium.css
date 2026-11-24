@@ -125,3 +125,43 @@ tbody tr:hover td { background: color-mix(in srgb, var(--brand-soft) 55%, transp
 /* a fotografia (imagem exportada) não usa efeitos */
 .slide .card, .slide .ndgs-kpi { backdrop-filter: none; animation: none; transition: none; }
 .slide .card { background: var(--surface); box-shadow: none; }
+
+/* ===== Insights ===== */
+.insight-hero { display: flex; gap: 18px; align-items: flex-start; padding: 22px 24px; border-radius: var(--radius); margin-bottom: 16px; color: #fff; background: radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--brand) 100%, #fff 16%), var(--brand-dark) 72%); box-shadow: 0 22px 44px -20px var(--brand), 0 1px 0 rgb(255 255 255 / 0.25) inset; }
+.insight-hero-ico { flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: rgb(255 255 255 / 0.16); box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset; }
+.insight-hero small { text-transform: uppercase; letter-spacing: 0.14em; font-size: 11px; font-weight: 700; opacity: 0.8; }
+.insight-hero h2 { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; margin: 4px 0 10px; }
+.insight-hero ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; opacity: 0.95; }
+
+.prior { display: flex; flex-direction: column; gap: 14px; }
+.prior-linha { display: grid; grid-template-columns: 30px 1fr 48px; gap: 12px; align-items: center; }
+.prior-linha .pos { color: var(--muted); font-weight: 800; }
+.prior-linha .topo { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 6px; }
+.prior-linha .topo small { color: var(--muted); font-size: 12px; }
+.prior-linha .barra { height: 12px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.prior-linha .barra i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #f2b01e, var(--brand)); }
+.prior-linha .pct { text-align: right; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+.prior-nota { color: var(--muted); font-size: 11.5px; }
+
+.insights-lista { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; align-items: start; }
+@media (max-width: 1100px) { .insights-lista { grid-template-columns: 1fr; } }
+.insight { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 16px 18px 16px 22px; overflow: hidden; }
+.insight::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--c); box-shadow: 0 0 18px var(--c); }
+.insight-cab { all: unset; box-sizing: border-box; display: flex; width: 100%; gap: 12px; align-items: flex-start; cursor: pointer; }
+.insight-ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.insight-tit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.insight-tit small { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+.insight-tit b { font-size: 15px; line-height: 1.3; letter-spacing: -0.01em; }
+.insight-seta { color: var(--muted); font-size: 20px; line-height: 1; padding: 0 4px; }
+.insight-leitura { margin: 10px 0 0 46px; color: var(--ink2); line-height: 1.5; }
+.insight-corpo { margin: 12px 0 0 46px; display: flex; flex-direction: column; gap: 12px; }
+.insight-evid { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+.insight-acao { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--c) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 28%, transparent); }
+.insight-acao svg { flex: none; color: var(--c); margin-top: 2px; }
+.insight-acao small { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; color: var(--c); }
+.insight-acao p { margin: 3px 0 0; line-height: 1.5; }
+
+.reco-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.reco { padding: 14px 16px; border-radius: 14px; background: color-mix(in srgb, var(--bg) 60%, var(--surface)); border: 1px solid var(--line); }
+.reco b { display: block; margin-bottom: 6px; }
+.reco p { margin: 0; color: var(--ink2); line-height: 1.5; font-size: 13px; }
