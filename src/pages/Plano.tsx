@@ -293,6 +293,7 @@ export default function Plano() {
         case "area": return x.a.area;
         case "acao": return x.a.acao;
         case "base": return x.a.base;
+        case "coord": return coordDoSinistro(x.s);
         case "resp": return x.a.responsavel;
         case "prazo": return x.a.prazo ?? "";
         default: return RANK_SIT[x.sit];
@@ -317,6 +318,7 @@ export default function Plano() {
         case "nome": return nomeDe(l);
         case "ger": return l.s?.processo ?? "";
         case "base": return baseDe(l);
+        case "coord": return coordDoSinistro(l.s);
         case "carac": return l.s ? l.s.caracteristica || l.s.tipo || "" : l.rasc?.acao ?? "";
         default: return l.rasc ? 1 : 0;
       }
@@ -665,7 +667,7 @@ export default function Plano() {
           </div>
           {linhas.length ? (
             <div className="table-wrap table-scroll" style={{ maxHeight: "70vh" }}>
-              <table className="plano-tabela" style={{ minWidth: 1120 }}>
+              <table className="plano-tabela" style={{ minWidth: 1220 }}>
                 <thead>
                   <tr>
                     <Th col="data" rotulo="Data do evento" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c, true))} />
@@ -674,6 +676,7 @@ export default function Plano() {
                     <Th col="area" rotulo="Áreas de controle" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
                     <Th col="acao" rotulo="Ação de melhoria" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
                     <Th col="base" rotulo="Base" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="coord" rotulo="Coordenador" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
                     <Th col="resp" rotulo="Responsável pela execução" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
                     <Th col="prazo" rotulo="Prazo (conclusão)" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c, true))} />
                     <Th col="sit" rotulo="Situação atual" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
@@ -690,6 +693,7 @@ export default function Plano() {
                         <td style={{ whiteSpace: "normal" }}>{a.area}</td>
                         <td style={{ whiteSpace: "normal", minWidth: 300 }}>{a.acao}</td>
                         <td>{a.base}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(x.s)}</td>
                         <td style={{ whiteSpace: "normal" }}>{a.responsavel}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{a.prazo ? fmtData(a.prazo) : "—"}</td>
                         <td><Selo sit={x.sit} /></td>
@@ -729,6 +733,7 @@ export default function Plano() {
                     <Th col="nome" rotulo="Colaborador / equipe" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     <Th col="ger" rotulo="Gerência" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     <Th col="base" rotulo="Base" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
+                    <Th col="coord" rotulo="Coordenador" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     <Th col="carac" rotulo="Característica" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     <Th col="plano" rotulo="Situação do plano" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     {admin && <th>Ações</th>}
@@ -741,6 +746,7 @@ export default function Plano() {
                       <td><b>{nomeDe(l)}</b>{l.s?.prefixo && <><br /><small style={{ color: "var(--muted)" }}>{l.s.prefixo}</small></>}</td>
                       <td>{l.s?.processo ?? ""}</td>
                       <td>{baseDe(l)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(l.s)}</td>
                       <td style={{ whiteSpace: "normal" }}>{l.s ? l.s.caracteristica || l.s.tipo || "—" : l.rasc?.acao || "—"}</td>
                       <td>
                         {l.rasc ? (
