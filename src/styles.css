@@ -530,3 +530,6 @@ table.calc tfoot td { font-weight: 700; border-top: 2px solid var(--line); borde
 .plano-legenda { flex-wrap: nowrap; gap: 4px; justify-content: center; }
 .plano-legenda .leg-item { padding: 4px 8px; white-space: nowrap; font-size: 12px; }
 .plano-tabela tbody tr.clicavel:hover { background: var(--brand-soft); }
+.th-ord { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; text-transform: inherit; letter-spacing: inherit; font: inherit; color: inherit; }
+.th-ord:hover { color: var(--ink); }
+.th-ord:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, Download, FileUp, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Download, FileUp, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
@@ -118,6 +118,35 @@ function FormAcao({ inicial, novo, existente, areas, onSalvar, onExcluir, onFech
   );
 }
 
+/* ---------- ordenação por coluna ---------- */
+type Ordem = { col: string; dir: "asc" | "desc" };
+/** Datas começam do mais recente (maior); textos, de A a Z. Clicar de novo inverte. */
+const proxima = (o: Ordem, col: string, datas = false): Ordem => (o.col === col ? { col, dir: o.dir === "asc" ? "desc" : "asc" } : { col, dir: datas ? "desc" : "asc" });
+const comparar = (x: string | number, y: string | number) =>
+  typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "pt-BR", { sensitivity: "base", numeric: true });
+/** Valores vazios ficam sempre no fim, qualquer que seja o sentido. */
+const ordenar = <T,>(lista: T[], ordem: Ordem, valor: (x: T, col: string) => string | number): T[] =>
+  [...lista].sort((a, b) => {
+    const va = valor(a, ordem.col), vb = valor(b, ordem.col);
+    if (va === "" && vb !== "") return 1;
+    if (vb === "" && va !== "") return -1;
+    const c = comparar(va, vb);
+    return ordem.dir === "asc" ? c : -c;
+  });
+const RANK_SIT: Record<SituacaoAcao, number> = { ATRASADO: 0, PENDENTE: 1, "EM ANDAMENTO": 2, CONCLUIDO: 3 };
+
+function Th({ col, rotulo, ordem, onOrdem }: { col: string; rotulo: string; ordem: Ordem; onOrdem: (col: string) => void }) {
+  const ativo = ordem.col === col;
+  return (
+    <th aria-sort={ativo ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" className="th-ord" onClick={() => onOrdem(col)} title={`Ordenar por ${rotulo.toLowerCase()}`}>
+        {rotulo}
+        {ativo ? (ordem.dir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} style={{ opacity: 0.4 }} />}
+      </button>
+    </th>
+  );
+}
+
 const Selo = ({ sit }: { sit: SituacaoAcao }) => (
   <span className="badge" style={{ background: COR_SIT[sit] + "33", color: COR_SIT[sit], fontWeight: 700, whiteSpace: "nowrap" }}>{ROTULO_SIT[sit]}</span>
 );
@@ -215,25 +244,50 @@ export default function Plano() {
     return m;
   }, [ligadas]);
   const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const [ordem, setOrdem] = useState<Ordem>({ col: "data", dir: "desc" });
   const linhas = useMemo<Linha[]>(() => {
     const t = semAcento(busca.trim());
-    return ligadas
+    const filtradas = ligadas
       .filter((x) => (!base || x.a.base === base) && (filtro === "todas" || x.sit === filtro))
-      .filter((x) => !t || semAcento([x.a.nome, x.a.responsavel].join(" ")).includes(t))
-      .sort((a, b) => b.a.dataEvento.localeCompare(a.a.dataEvento) || a.a.nome.localeCompare(b.a.nome));
-  }, [ligadas, base, filtro, busca]);
+      .filter((x) => !t || semAcento([x.a.nome, x.a.responsavel].join(" ")).includes(t));
+    const valor = (x: Linha, col: string): string | number => {
+      switch (col) {
+        case "data": return x.a.dataEvento;
+        case "nome": return x.a.nome;
+        case "tipo": return tipoDe(x.a);
+        case "area": return x.a.area;
+        case "acao": return x.a.acao;
+        case "base": return x.a.base;
+        case "resp": return x.a.responsavel;
+        case "prazo": return x.a.prazo ?? "";
+        default: return RANK_SIT[x.sit];
+      }
+    };
+    return ordenar(filtradas, ordem, valor);
+  }, [ligadas, base, filtro, busca, ordem]);
 
   // sinistros sem plano de ação: tabela própria, com filtros próprios
   const [sBase, setSBase] = useState("");
   const [sMes, setSMes] = useState("");
   const [sBusca, setSBusca] = useState("");
+  const [ordemSem, setOrdemSem] = useState<Ordem>({ col: "data", dir: "desc" });
   const semFiltrados = useMemo(() => {
     const t = sBusca.trim().toLowerCase();
-    return semPlano
+    const filtradas = semPlano
       .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes))
-      .filter((l) => !t || [nomeDe(l), l.s?.prefixo, l.s?.caracteristica, l.s?.tipo, l.s?.processo, l.rasc?.acao].join(" ").toLowerCase().includes(t))
-      .sort((a, b) => dataDe(b).localeCompare(dataDe(a)));
-  }, [semPlano, sBase, base, sMes, sBusca]);
+      .filter((l) => !t || [nomeDe(l), l.s?.prefixo, l.s?.caracteristica, l.s?.tipo, l.s?.processo, l.rasc?.acao].join(" ").toLowerCase().includes(t));
+    const valor = (l: SemLinha, col: string): string | number => {
+      switch (col) {
+        case "data": return dataDe(l);
+        case "nome": return nomeDe(l);
+        case "ger": return l.s?.processo ?? "";
+        case "base": return baseDe(l);
+        case "carac": return l.s ? l.s.caracteristica || l.s.tipo || "" : l.rasc?.acao ?? "";
+        default: return l.rasc ? 1 : 0;
+      }
+    };
+    return ordenar(filtradas, ordemSem, valor);
+  }, [semPlano, sBase, base, sMes, sBusca, ordemSem]);
   const mesesSem = useMemo(() => [...new Set(semPlano.map((l) => dataDe(l).slice(5, 7)))].filter(Boolean).sort(), [semPlano]);
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
@@ -351,7 +405,6 @@ export default function Plano() {
 
   const axis = { fontSize: 12, fill: c.text };
   const areas = useMemo(() => [...new Set(acoes.map((a) => a.area).filter(Boolean))].sort(), [acoes]);
-  const colunas = ["Data do evento", "Nome", "Tipo", "Áreas de controle", "Ação de melhoria", "Base", "Responsável pela execução", "Prazo (conclusão)", "Situação atual"];
 
   return (
     <>
@@ -500,8 +553,15 @@ export default function Plano() {
               <table className="plano-tabela" style={{ minWidth: 1120 }}>
                 <thead>
                   <tr>
-                    {colunas.map((t) => <th key={t}>{t}</th>)}
-                    {admin && <th>Ações</th>}
+                    <Th col="data" rotulo="Data do evento" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c, true))} />
+                    <Th col="nome" rotulo="Nome" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="tipo" rotulo="Tipo" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="area" rotulo="Áreas de controle" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="acao" rotulo="Ação de melhoria" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="base" rotulo="Base" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="resp" rotulo="Responsável pela execução" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
+                    <Th col="prazo" rotulo="Prazo (conclusão)" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c, true))} />
+                    <Th col="sit" rotulo="Situação atual" ordem={ordem} onOrdem={(c) => setOrdem((o) => proxima(o, c))} />
                   </tr>
                 </thead>
                 <tbody>
@@ -518,11 +578,6 @@ export default function Plano() {
                         <td style={{ whiteSpace: "normal" }}>{a.responsavel}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{a.prazo ? fmtData(a.prazo) : "—"}</td>
                         <td><Selo sit={x.sit} /></td>
-                        {admin && (
-                          <td>
-                            <button className="btn" style={{ padding: "5px 12px" }} onClick={(e) => { e.stopPropagation(); abrirEditar(a); }}><Pencil size={14} /> Editar</button>
-                          </td>
-                        )}
                       </tr>
                     );
                   })}
@@ -555,7 +610,12 @@ export default function Plano() {
               <table className="plano-tabela" style={{ minWidth: 900 }}>
                 <thead>
                   <tr>
-                    <th>Data do evento</th><th>Colaborador / equipe</th><th>Gerência</th><th>Base</th><th>Característica</th><th>Situação do plano</th>
+                    <Th col="data" rotulo="Data do evento" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c, true))} />
+                    <Th col="nome" rotulo="Colaborador / equipe" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
+                    <Th col="ger" rotulo="Gerência" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
+                    <Th col="base" rotulo="Base" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
+                    <Th col="carac" rotulo="Característica" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
+                    <Th col="plano" rotulo="Situação do plano" ordem={ordemSem} onOrdem={(c) => setOrdemSem((o) => proxima(o, c))} />
                     {admin && <th>Ações</th>}
                   </tr>
                 </thead>
