@@ -167,6 +167,7 @@ const acaoDeLinha = (l: Linha): AcaoPlano => ({
   prazo: l.prazo ?? null,
   situacao: (l.situacao ?? "PENDENTE") as SituacaoAcao,
   tipo: l.tipo === "QUADRANTE" ? "QUADRANTE" : "RIAI",
+  coordenador: l.coordenador || null,
   concluidoEm: l.concluido_em ?? null,
 });
 const acaoParaLinha = (a: AcaoPlano): Linha => ({
@@ -181,6 +182,7 @@ const acaoParaLinha = (a: AcaoPlano): Linha => ({
   prazo: a.prazo || null,
   situacao: a.situacao,
   tipo: a.tipo === "QUADRANTE" ? "QUADRANTE" : "RIAI",
+  coordenador: a.coordenador || null,
   concluido_em: a.concluidoEm || null,
 });
 
@@ -189,8 +191,8 @@ export async function gravarAcoes(lista: AcaoPlano[]): Promise<string | null> {
   if (!lista.length) return null;
   let { error } = await db().from("plano_acoes").upsert(lista.map(acaoParaLinha));
   // banco ainda sem a coluna "tipo" (migração não rodada): grava sem ela para não travar o plano
-  if (error && /tipo/i.test(error.message ?? "")) {
-    ({ error } = await db().from("plano_acoes").upsert(lista.map((a) => { const { tipo: _t, ...resto } = acaoParaLinha(a); return resto; })));
+  if (error && /tipo|coordenador/i.test(error.message ?? "")) {
+    ({ error } = await db().from("plano_acoes").upsert(lista.map((a) => { const { tipo: _t, coordenador: _c, ...resto } = acaoParaLinha(a); return resto; })));
   }
   return mensagem(error);
 }

@@ -19,6 +19,7 @@ create table if not exists public.plano_acoes (
 
 -- Tipo do plano: RIAI (todos os já existentes) ou QUADRANTE. Pode rodar de novo sem problema.
 alter table public.plano_acoes add column if not exists tipo text not null default 'RIAI';
+alter table public.plano_acoes add column if not exists coordenador text;
 alter table public.plano_acoes drop constraint if exists plano_acoes_tipo_check;
 alter table public.plano_acoes add constraint plano_acoes_tipo_check check (tipo in ('RIAI', 'QUADRANTE'));
 

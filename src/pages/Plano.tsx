@@ -42,8 +42,8 @@ function Dica({ active, titulo, linhas, rodape }: { active?: boolean; titulo?: s
 }
 
 /** Formulário do plano de ação: a ação só entra no plano quando todos os campos obrigatórios estão preenchidos. */
-function FormAcao({ inicial, novo, existente, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; novo: boolean; existente: boolean; areas: string[]; onSalvar: (a: AcaoPlano, outra: boolean) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
-  const [f, setF] = useState<AcaoPlano>(inicial);
+function FormAcao({ inicial, coordPadrao, coordenadores, novo, existente, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; coordPadrao: string; coordenadores: string[]; novo: boolean; existente: boolean; areas: string[]; onSalvar: (a: AcaoPlano, outra: boolean) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
+  const [f, setF] = useState<AcaoPlano>({ ...inicial, coordenador: inicial.coordenador || (coordPadrao !== SEM_COORDENADOR ? coordPadrao : null) });
   const [salvando, setSalvando] = useState(false);
   const set = <K extends keyof AcaoPlano>(k: K, v: AcaoPlano[K]) => setF((x) => ({ ...x, [k]: v }));
   const falta = faltando(f);
@@ -82,6 +82,12 @@ function FormAcao({ inicial, novo, existente, areas, onSalvar, onExcluir, onFech
           <div className="field"><label>Tipo do plano *</label>
             <select className="select" value={tipoDe(f)} onChange={(e) => set("tipo", e.target.value as TipoPlano)}>
               {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>Coordenador</label>
+            <select className="select" value={f.coordenador ?? ""} onChange={(e) => set("coordenador", e.target.value || null)}>
+              <option value="">{coordPadrao === SEM_COORDENADOR ? "Escolha o coordenador" : `Do sinistro (${coordPadrao})`}</option>
+              {[...new Set([...coordenadores.filter((c) => c !== SEM_COORDENADOR), ...(f.coordenador ? [f.coordenador] : [])])].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div className="field"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} />{vazio("Nome")}</div>
@@ -197,11 +203,11 @@ export default function Plano() {
   const ligadasTodas = useMemo(() => doAno.filter(completa).map((a) => ({ a, s: sinistroDa(a, sinistros), sit: situacaoEfetiva(a, hoje) })), [doAno, sinistros, hoje]);
   const [tipoF, setTipoF] = useState<"" | TipoPlano>("");
   const [coordF, setCoordF] = useState("");
-  const coordDoSinistro = (s?: Registro) => (s ? coordenadorDe(s) : SEM_COORDENADOR);
-  const ligadas = useMemo(() => ligadasTodas.filter((x) => (!tipoF || tipoDe(x.a) === tipoF) && (!coordF || coordDoSinistro(x.s) === coordF)), [ligadasTodas, tipoF, coordF]);
+  const coordDoSinistro = (s?: Registro, a?: AcaoPlano) => a?.coordenador || (s ? coordenadorDe(s) : SEM_COORDENADOR);
+  const ligadas = useMemo(() => ligadasTodas.filter((x) => (!tipoF || tipoDe(x.a) === tipoF) && (!coordF || coordDoSinistro(x.s, x.a) === coordF)), [ligadasTodas, tipoF, coordF]);
   const coordenadores = useMemo(() => {
-    const usados = new Set([...ligadasTodas.map((x) => coordDoSinistro(x.s)), ...sinistros.map((s) => coordDoSinistro(s))]);
-    return [...listaCoordenadores().filter((c) => usados.has(c)), ...(usados.has(SEM_COORDENADOR) ? [SEM_COORDENADOR] : [])];
+    const usados = new Set([...ligadasTodas.map((x) => coordDoSinistro(x.s, x.a)), ...sinistros.map((s) => coordDoSinistro(s))]);
+    return [...new Set([...listaCoordenadores().filter((c) => usados.has(c))]), ...(usados.has(SEM_COORDENADOR) ? [SEM_COORDENADOR] : [])];
   }, [ligadasTodas, sinistros]);
   const semPlano = useMemo<SemLinha[]>(() => {
     const com = new Set(ligadasTodas.map((x) => x.s?.id).filter(Boolean));
@@ -227,7 +233,7 @@ export default function Plano() {
   const baseDe = (l: SemLinha) => l.s?.base ?? l.rasc?.base ?? "";
   const dataDe = (l: SemLinha) => l.s?.data ?? l.rasc?.dataEvento ?? "";
   const nomeDe = (l: SemLinha) => l.s?.colaborador ?? l.rasc?.nome ?? "";
-  const semBase = useMemo(() => semPlano.filter((l) => (!base || baseDe(l) === base) && (!coordF || coordDoSinistro(l.s) === coordF) && (!gerF || gerDe(l.s) === gerF)), [semPlano, base, coordF, gerF]);
+  const semBase = useMemo(() => semPlano.filter((l) => (!base || baseDe(l) === base) && (!coordF || coordDoSinistro(l.s, l.rasc) === coordF) && (!gerF || gerDe(l.s) === gerF)), [semPlano, base, coordF, gerF]);
   const cont = (sit: SituacaoAcao) => ligBase.filter((x) => x.sit === sit).length;
   const total = ligBase.length;
   const concluidas = cont("CONCLUIDO");
@@ -260,10 +266,10 @@ export default function Plano() {
   // ranking por coordenador: respeita tipo, base e gerência, mas não o próprio filtro de coordenador
   const rankCoord = useMemo(() => {
     const base0 = ligadasTodas.filter((x) => (!tipoF || tipoDe(x.a) === tipoF) && (!base || x.a.base === base) && (!gerF || gerDe(x.s) === gerF));
-    const nomes = [...new Set(base0.map((x) => coordDoSinistro(x.s)))];
+    const nomes = [...new Set(base0.map((x) => coordDoSinistro(x.s, x.a)))];
     return nomes
       .map((n) => {
-        const l = base0.filter((x) => coordDoSinistro(x.s) === n);
+        const l = base0.filter((x) => coordDoSinistro(x.s, x.a) === n);
         const por = Object.fromEntries(SITUACOES.map((st) => [st, l.filter((x) => x.sit === st).length])) as Record<SituacaoAcao, number>;
         const total = l.length;
         return { nome: n, total, por, pct: total ? por.CONCLUIDO / total : 0 };
@@ -293,7 +299,7 @@ export default function Plano() {
         case "area": return x.a.area;
         case "acao": return x.a.acao;
         case "base": return x.a.base;
-        case "coord": return coordDoSinistro(x.s);
+        case "coord": return coordDoSinistro(x.s, x.a);
         case "resp": return x.a.responsavel;
         case "prazo": return x.a.prazo ?? "";
         default: return RANK_SIT[x.sit];
@@ -310,7 +316,7 @@ export default function Plano() {
   const semFiltrados = useMemo(() => {
     const t = sBusca.trim().toLowerCase();
     const filtradas = semPlano
-      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes) && (!coordF || coordDoSinistro(l.s) === coordF) && (!gerF || gerDe(l.s) === gerF))
+      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes) && (!coordF || coordDoSinistro(l.s, l.rasc) === coordF) && (!gerF || gerDe(l.s) === gerF))
       .filter((l) => !t || [nomeDe(l), l.s?.prefixo, l.s?.caracteristica, l.s?.tipo, l.s?.processo, l.rasc?.acao].join(" ").toLowerCase().includes(t));
     const valor = (l: SemLinha, col: string): string | number => {
       switch (col) {
@@ -318,7 +324,7 @@ export default function Plano() {
         case "nome": return nomeDe(l);
         case "ger": return l.s?.processo ?? "";
         case "base": return baseDe(l);
-        case "coord": return coordDoSinistro(l.s);
+        case "coord": return coordDoSinistro(l.s, l.rasc);
         case "carac": return l.s ? l.s.caracteristica || l.s.tipo || "" : l.rasc?.acao ?? "";
         default: return l.rasc ? 1 : 0;
       }
@@ -329,8 +335,8 @@ export default function Plano() {
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
   const [form, setForm] = useState<{ acao: AcaoPlano; novo: boolean; existente: boolean } | null>(null);
-  const abrirNova = (o: { registroId?: string | null; dataEvento: string; nome: string; base: string; tipo?: TipoPlano }) =>
-    setForm({ novo: true, existente: false, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", tipo: o.tipo ?? "RIAI", concluidoEm: null } });
+  const abrirNova = (o: { registroId?: string | null; dataEvento: string; nome: string; base: string; tipo?: TipoPlano; coordenador?: string | null }) =>
+    setForm({ novo: true, existente: false, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", tipo: o.tipo ?? "RIAI", coordenador: o.coordenador ?? null, concluidoEm: null } });
   const abrirEditar = (a: AcaoPlano) => admin && setForm({ novo: false, existente: true, acao: a });
   const abrirLinha = (l: SemLinha) => {
     if (!admin) return;
@@ -358,7 +364,7 @@ export default function Plano() {
     const e = await setAcoes([a]);
     if (e) return setToast(e);
     if (outra) {
-      abrirNova({ registroId: a.registroId, dataEvento: a.dataEvento, nome: a.nome, base: a.base, tipo: tipoDe(a) });
+      abrirNova({ registroId: a.registroId, dataEvento: a.dataEvento, nome: a.nome, base: a.base, tipo: tipoDe(a), coordenador: a.coordenador });
       setToast("Ação incluída no plano. Cadastre a próxima ação deste sinistro");
       return;
     }
@@ -393,7 +399,7 @@ export default function Plano() {
       "AÇÃO DE MELHORIAS": x.a.acao,
       BASE: x.a.base,
       GERÊNCIA: x.s?.processo ?? "",
-      COORDENADOR: coordDoSinistro(x.s),
+      COORDENADOR: coordDoSinistro(x.s, x.a),
       "RESPONSÁVEL PELA EXECUÇÃO": x.a.responsavel,
       "DATA PREVISTA DE EXECUÇÃO (Conclusão)": dt(x.a.prazo),
       "SITUAÇÃO ATUAL": x.sit,
@@ -693,7 +699,7 @@ export default function Plano() {
                         <td style={{ whiteSpace: "normal" }}>{a.area}</td>
                         <td style={{ whiteSpace: "normal", minWidth: 300 }}>{a.acao}</td>
                         <td>{a.base}</td>
-                        <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(x.s)}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(x.s, x.a)}</td>
                         <td style={{ whiteSpace: "normal" }}>{a.responsavel}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{a.prazo ? fmtData(a.prazo) : "—"}</td>
                         <td><Selo sit={x.sit} /></td>
@@ -746,7 +752,7 @@ export default function Plano() {
                       <td><b>{nomeDe(l)}</b>{l.s?.prefixo && <><br /><small style={{ color: "var(--muted)" }}>{l.s.prefixo}</small></>}</td>
                       <td>{l.s?.processo ?? ""}</td>
                       <td>{baseDe(l)}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(l.s)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{coordDoSinistro(l.s, l.rasc)}</td>
                       <td style={{ whiteSpace: "normal" }}>{l.s ? l.s.caracteristica || l.s.tipo || "—" : l.rasc?.acao || "—"}</td>
                       <td>
                         {l.rasc ? (
@@ -767,7 +773,7 @@ export default function Plano() {
         </Card>
         </div>
       </div>
-      {form && <FormAcao key={form.acao.id} inicial={form.acao} novo={form.novo} existente={form.existente} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => (form.existente ? excluir(form.acao) : descartar(form.acao))} onFechar={() => setForm(null)} />}
+      {form && <FormAcao key={form.acao.id} inicial={form.acao} coordPadrao={coordDoSinistro(sinistroDa(form.acao, sinistros))} coordenadores={listaCoordenadores()} novo={form.novo} existente={form.existente} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => (form.existente ? excluir(form.acao) : descartar(form.acao))} onFechar={() => setForm(null)} />}
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     </>
   );

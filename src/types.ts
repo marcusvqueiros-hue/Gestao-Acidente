@@ -139,6 +139,7 @@ export interface AcaoPlano {
   prazo?: string | null; // data prevista de conclusão, AAAA-MM-DD
   situacao: SituacaoAcao;
   tipo?: TipoPlano; // sem valor = RIAI
+  coordenador?: string | null; // escolhido no plano; sem valor = o do sinistro
   concluidoEm?: string | null; // AAAA-MM-DD
 }
 
