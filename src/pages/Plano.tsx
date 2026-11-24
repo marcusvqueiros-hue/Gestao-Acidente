@@ -41,20 +41,24 @@ function Dica({ active, titulo, linhas, rodape }: { active?: boolean; titulo?: s
 }
 
 /** Formulário do plano de ação: a ação só entra no plano quando todos os campos obrigatórios estão preenchidos. */
-function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; novo: boolean; areas: string[]; onSalvar: (a: AcaoPlano) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
+function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { inicial: AcaoPlano; novo: boolean; areas: string[]; onSalvar: (a: AcaoPlano, outra: boolean) => Promise<void>; onExcluir?: () => void; onFechar: () => void }) {
   const [f, setF] = useState<AcaoPlano>(inicial);
   const [salvando, setSalvando] = useState(false);
   const set = <K extends keyof AcaoPlano>(k: K, v: AcaoPlano[K]) => setF((x) => ({ ...x, [k]: v }));
   const falta = faltando(f);
   const vazio = (rotulo: string) => falta.includes(rotulo) && <span className="err">Obrigatório</span>;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function enviar(outra: boolean) {
     if (falta.length || salvando) return;
     setSalvando(true);
     const m = { ...f, concluidoEm: f.situacao === "CONCLUIDO" ? f.concluidoEm || hojeISO() : null };
-    await onSalvar(m);
+    await onSalvar(m, outra);
     setSalvando(false);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    void enviar(false);
   }
 
   return (
@@ -64,7 +68,7 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
           <h2>{novo ? "Novo plano de ação" : "Completar plano de ação"}</h2>
           <button type="button" className="icon-btn" onClick={onFechar} aria-label="Fechar"><X size={20} /></button>
         </div>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>Preencha todos os campos: o plano só sobe para a tabela "Plano de ação dos sinistros" quando estiver completo.</p>
+        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>Preencha todos os campos: a ação só sobe para a tabela "Plano de ação dos sinistros" quando estiver completa. Um sinistro pode ter quantas ações forem necessárias.</p>
         <div className="form-grid">
           <div className="field"><label>Data do evento</label><input className="input" type="date" value={f.dataEvento} onChange={(e) => set("dataEvento", e.target.value)} /></div>
           <div className="field"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} />{vazio("Nome")}</div>
@@ -87,6 +91,7 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button className="btn primary" disabled={!!falta.length || salvando}>{salvando ? "Salvando…" : "Incluir no plano de ação"}</button>
+          <button type="button" className="btn" disabled={!!falta.length || salvando} onClick={() => void enviar(true)}><Plus size={14} /> Incluir e adicionar outra ação</button>
           <button type="button" className="btn" onClick={onFechar}>Cancelar</button>
           {onExcluir && <button type="button" className="btn" onClick={onExcluir}><Trash2 size={14} /> Descartar rascunho</button>}
           <small style={{ color: falta.length ? "var(--bad)" : "var(--muted)" }}>{falta.length ? `Faltam: ${falta.join(", ")}` : "Tudo preenchido."}</small>
@@ -147,13 +152,15 @@ export default function Plano() {
     const com = new Set(ligadas.map((x) => x.s?.id).filter(Boolean));
     const rasc = doAno.filter((a) => !completa(a)).map((a) => ({ a, s: sinistroDa(a, sinistros) }));
     const usados = new Set<string>();
-    const dos: SemLinha[] = sinistros
-      .filter((s) => !com.has(s.id))
-      .map((s) => {
-        const x = rasc.find((y) => y.s?.id === s.id);
-        if (x) usados.add(x.a.id);
-        return { s, rasc: x?.a };
-      });
+    const dos: SemLinha[] = [];
+    for (const s of sinistros.filter((y) => !com.has(y.id))) {
+      const rascs = rasc.filter((y) => y.s?.id === s.id);
+      if (!rascs.length) dos.push({ s });
+      for (const y of rascs) {
+        usados.add(y.a.id);
+        dos.push({ s, rasc: y.a });
+      }
+    }
     const resto: SemLinha[] = rasc.filter((x) => !usados.has(x.a.id)).map((x) => ({ s: x.s, rasc: x.a }));
     return [...dos, ...resto];
   }, [ligadas, doAno, sinistros]);
@@ -184,6 +191,12 @@ export default function Plano() {
   }, [ligadas, ligSit]);
 
   const [busca, setBusca] = useState("");
+  const chaveSinistro = (a: AcaoPlano, s?: Registro) => s?.id ?? `${a.dataEvento}|${a.nome}`;
+  const acoesPorSinistro = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of ligadas) m.set(chaveSinistro(x.a, x.s), (m.get(chaveSinistro(x.a, x.s)) ?? 0) + 1);
+    return m;
+  }, [ligadas]);
   const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const linhas = useMemo<Linha[]>(() => {
     const t = semAcento(busca.trim());
@@ -216,6 +229,21 @@ export default function Plano() {
     if (l.s) abrirNova({ registroId: l.s.id, dataEvento: l.s.data, nome: l.s.colaborador, base: l.s.base });
   };
 
+  // posição de cada ação entre as do mesmo sinistro ("ação 2 de 3")
+  const posicoes = useMemo(() => {
+    const c = new Map<string, number>();
+    return linhas.map((x) => {
+      const k = chaveSinistro(x.a, x.s);
+      const n = (c.get(k) ?? 0) + 1;
+      c.set(k, n);
+      return n;
+    });
+  }, [linhas]);
+  const marca = (x: Linha, i: number) => {
+    const n = acoesPorSinistro.get(chaveSinistro(x.a, x.s)) ?? 1;
+    return n > 1 ? <small style={{ display: "block", color: "var(--muted)", marginTop: 4 }}>Ação {posicoes[i]} de {n} do sinistro</small> : null;
+  };
+
   const valor = <K extends keyof AcaoPlano>(a: AcaoPlano, k: K): AcaoPlano[K] => (rascunho[a.id]?.[k] ?? a[k]) as AcaoPlano[K];
   const mudou = (a: AcaoPlano) => !!rascunho[a.id] && (Object.keys(rascunho[a.id]) as (keyof AcaoPlano)[]).some((k) => (rascunho[a.id][k] ?? "") !== (a[k] ?? ""));
   const editar = (a: AcaoPlano, parte: Partial<AcaoPlano>) => setRascunho((r) => ({ ...r, [a.id]: { ...r[a.id], ...parte } }));
@@ -238,11 +266,16 @@ export default function Plano() {
     setToast(msg);
   }
 
-  async function incluir(a: AcaoPlano) {
+  async function incluir(a: AcaoPlano, outra: boolean) {
     const e = await setAcoes([a]);
     if (e) return setToast(e);
+    if (outra) {
+      abrirNova({ registroId: a.registroId, dataEvento: a.dataEvento, nome: a.nome, base: a.base });
+      setToast("Ação incluída no plano. Cadastre a próxima ação deste sinistro");
+      return;
+    }
     setForm(null);
-    setToast("Plano incluído no plano de ação dos sinistros");
+    setToast("Ação incluída no plano de ação dos sinistros");
   }
 
   async function descartar(a: AcaoPlano) {
@@ -468,7 +501,7 @@ export default function Plano() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linhas.map((x) => {
+                  {linhas.map((x, i) => {
                     const a = x.a;
                     const m = mudou(a);
                     const sit = situacaoEfetiva({ ...a, situacao: valor(a, "situacao"), prazo: valor(a, "prazo") }, hoje);
@@ -476,7 +509,7 @@ export default function Plano() {
                       <tr key={a.id}>
                         {admin ? (
                           <>
-                            <td><input className="input" type="date" value={valor(a, "dataEvento")} onChange={(e) => editar(a, { dataEvento: e.target.value })} style={{ width: 128 }} aria-label="Data do evento" /></td>
+                            <td><input className="input" type="date" value={valor(a, "dataEvento")} onChange={(e) => editar(a, { dataEvento: e.target.value })} style={{ width: 128 }} aria-label="Data do evento" />{marca(x, i)}</td>
                             <td><input className="input" value={valor(a, "nome")} onChange={(e) => editar(a, { nome: e.target.value })} style={{ width: 150 }} aria-label="Nome" /></td>
                             <td><input className="input" list="plano-areas" value={valor(a, "area")} onChange={(e) => editar(a, { area: e.target.value })} style={{ width: 140 }} aria-label="Áreas de controle" /></td>
                             <td><textarea className="input" rows={3} value={valor(a, "acao")} onChange={(e) => editar(a, { acao: e.target.value })} style={{ width: 250, resize: "vertical" }} aria-label="Ação de melhoria" /></td>
@@ -511,7 +544,7 @@ export default function Plano() {
                           </>
                         ) : (
                           <>
-                            <td>{fmtData(a.dataEvento)}</td>
+                            <td>{fmtData(a.dataEvento)}{marca(x, i)}</td>
                             <td><b>{a.nome}</b></td>
                             <td>{a.area}</td>
                             <td style={{ minWidth: 300, whiteSpace: "normal" }}>{a.acao}</td>
@@ -553,7 +586,7 @@ export default function Plano() {
             </select>
             {(sBusca || sMes || sBase) && <button className="btn" onClick={() => { setSBusca(""); setSMes(""); setSBase(""); }}>Limpar filtros</button>}
           </div>
-          {admin && <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 10px" }}>Clique em um sinistro para preencher o plano de ação. Ele só sobe para a tabela de cima quando todos os campos estiverem preenchidos.</p>}
+          {admin && <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 10px" }}>Clique em um sinistro para preencher o plano de ação. A ação só sobe para a tabela de cima quando todos os campos estiverem preenchidos. Um sinistro pode ter mais de uma ação.</p>}
           {semFiltrados.length ? (
             <div className="table-wrap table-scroll" style={{ maxHeight: "60vh" }}>
               <table className="plano-tabela" style={{ minWidth: 900 }}>
@@ -590,7 +623,7 @@ export default function Plano() {
         </Card>
         </div>
       </div>
-      {form && <FormAcao inicial={form.acao} novo={form.novo} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => descartar(form.acao)} onFechar={() => setForm(null)} />}
+      {form && <FormAcao key={form.acao.id} inicial={form.acao} novo={form.novo} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => descartar(form.acao)} onFechar={() => setForm(null)} />}
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     </>
   );
