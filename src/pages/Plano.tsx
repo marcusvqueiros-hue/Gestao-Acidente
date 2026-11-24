@@ -6,8 +6,8 @@ import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
 import { fmtData } from "../lib/stats";
 import { Card, ChartTip, Chips, Empty, Toast } from "../components/ui";
-import { BASES, MESES, type AcaoPlano, type Registro, type SituacaoAcao } from "../types";
-import { COR_SIT, ROTULO_SIT, SITUACOES, chaveAcao, completa, faltando, hojeISO, lerPlanilha, novoIdAcao, situacaoEfetiva, sinistroDa } from "../lib/plano";
+import { BASES, MESES, type AcaoPlano, type Registro, type SituacaoAcao, type TipoPlano } from "../types";
+import { COR_SIT, ROTULO_SIT, SITUACOES, chaveAcao, completa, faltando, hojeISO, lerPlanilha, novoIdAcao, situacaoEfetiva, sinistroDa, ROTULO_TIPO, TIPOS_PLANO, tipoDe } from "../lib/plano";
 
 type Linha = { a: AcaoPlano; s?: Registro; sit: SituacaoAcao };
 type Filtro = "todas" | SituacaoAcao;
@@ -71,6 +71,11 @@ function FormAcao({ inicial, novo, areas, onSalvar, onExcluir, onFechar }: { ini
         <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>Preencha todos os campos: a ação só sobe para a tabela "Plano de ação dos sinistros" quando estiver completa. Um sinistro pode ter quantas ações forem necessárias.</p>
         <div className="form-grid">
           <div className="field"><label>Data do evento</label><input className="input" type="date" value={f.dataEvento} onChange={(e) => set("dataEvento", e.target.value)} /></div>
+          <div className="field"><label>Tipo do plano *</label>
+            <select className="select" value={tipoDe(f)} onChange={(e) => set("tipo", e.target.value as TipoPlano)}>
+              {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+            </select>
+          </div>
           <div className="field"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} />{vazio("Nome")}</div>
           <div className="field"><label>Áreas de controle *</label><input className="input" list="plano-areas-form" value={f.area} onChange={(e) => set("area", e.target.value)} placeholder="Ex.: Ação de controle" />{vazio("Áreas de controle")}<datalist id="plano-areas-form">{areas.map((a) => <option key={a} value={a} />)}</datalist></div>
           <div className="field"><label>Base *</label>
@@ -147,9 +152,11 @@ export default function Plano() {
   const sinistros = useMemo(() => data.registros.filter((r) => r.categoria === "acidente" && r.data.startsWith(String(ano))), [data.registros, ano]);
   const doAno = useMemo(() => acoes.filter((a) => a.dataEvento.startsWith(String(ano))), [acoes, ano]);
   // só entram no plano as ações com todos os campos preenchidos; as demais ficam na tabela de sinistros sem plano
-  const ligadas = useMemo(() => doAno.filter(completa).map((a) => ({ a, s: sinistroDa(a, sinistros), sit: situacaoEfetiva(a, hoje) })), [doAno, sinistros, hoje]);
+  const ligadasTodas = useMemo(() => doAno.filter(completa).map((a) => ({ a, s: sinistroDa(a, sinistros), sit: situacaoEfetiva(a, hoje) })), [doAno, sinistros, hoje]);
+  const [tipoF, setTipoF] = useState<"" | TipoPlano>("");
+  const ligadas = useMemo(() => ligadasTodas.filter((x) => !tipoF || tipoDe(x.a) === tipoF), [ligadasTodas, tipoF]);
   const semPlano = useMemo<SemLinha[]>(() => {
-    const com = new Set(ligadas.map((x) => x.s?.id).filter(Boolean));
+    const com = new Set(ligadasTodas.map((x) => x.s?.id).filter(Boolean));
     const rasc = doAno.filter((a) => !completa(a)).map((a) => ({ a, s: sinistroDa(a, sinistros) }));
     const usados = new Set<string>();
     const dos: SemLinha[] = [];
@@ -163,7 +170,7 @@ export default function Plano() {
     }
     const resto: SemLinha[] = rasc.filter((x) => !usados.has(x.a.id)).map((x) => ({ s: x.s, rasc: x.a }));
     return [...dos, ...resto];
-  }, [ligadas, doAno, sinistros]);
+  }, [ligadasTodas, doAno, sinistros]);
 
   // cartões e rosca seguem a base escolhida; o gráfico por base segue a situação escolhida
   const ligBase = useMemo(() => ligadas.filter((x) => !base || x.a.base === base), [ligadas, base]);
@@ -221,8 +228,8 @@ export default function Plano() {
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
   const [form, setForm] = useState<{ acao: AcaoPlano; novo: boolean } | null>(null);
-  const abrirNova = (o: { registroId?: string | null; dataEvento: string; nome: string; base: string }) =>
-    setForm({ novo: true, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", concluidoEm: null } });
+  const abrirNova = (o: { registroId?: string | null; dataEvento: string; nome: string; base: string; tipo?: TipoPlano }) =>
+    setForm({ novo: true, acao: { id: novoIdAcao(), registroId: o.registroId ?? null, dataEvento: o.dataEvento, nome: o.nome, area: "", acao: "", base: o.base, responsavel: "", prazo: null, situacao: "PENDENTE", tipo: o.tipo ?? "RIAI", concluidoEm: null } });
   const abrirLinha = (l: SemLinha) => {
     if (!admin) return;
     if (l.rasc) return setForm({ novo: false, acao: l.rasc });
@@ -270,7 +277,7 @@ export default function Plano() {
     const e = await setAcoes([a]);
     if (e) return setToast(e);
     if (outra) {
-      abrirNova({ registroId: a.registroId, dataEvento: a.dataEvento, nome: a.nome, base: a.base });
+      abrirNova({ registroId: a.registroId, dataEvento: a.dataEvento, nome: a.nome, base: a.base, tipo: tipoDe(a) });
       setToast("Ação incluída no plano. Cadastre a próxima ação deste sinistro");
       return;
     }
@@ -298,6 +305,7 @@ export default function Plano() {
     const plano = linhas.map((x) => ({
       "DATA DO EVENTO": dt(x.a.dataEvento),
       NOME: x.a.nome,
+      TIPO: ROTULO_TIPO[tipoDe(x.a)].toUpperCase(),
       "ÁREAS DE CONTROLE": x.a.area,
       "AÇÃO DE MELHORIAS": x.a.acao,
       BASE: x.a.base,
@@ -321,7 +329,7 @@ export default function Plano() {
       ws["!cols"] = larguras.map((wch) => ({ wch }));
       return ws;
     };
-    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 30, 70, 8, 34, 20, 16, 16]), "Plano de Ação");
+    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 12, 30, 70, 8, 34, 20, 16, 16]), "Plano de Ação");
     X.utils.book_append_sheet(wb, folha(sem, [14, 34, 16, 12, 8, 50, 44]), "Sinistros sem plano");
     X.writeFile(wb, `plano-de-acao-${ano}.xlsx`);
     setToast(`Planilha exportada: ${plano.length} ação(ões) e ${sem.length} sinistro(s) sem plano`);
@@ -351,12 +359,16 @@ export default function Plano() {
 
   const axis = { fontSize: 12, fill: c.text };
   const areas = useMemo(() => [...new Set(acoes.map((a) => a.area).filter(Boolean))].sort(), [acoes]);
-  const colunas = ["Data do evento", "Nome", "Áreas de controle", "Ação de melhoria", "Base", "Responsável pela execução", "Prazo (conclusão)", "Situação atual"];
+  const colunas = ["Data do evento", "Nome", "Tipo", "Áreas de controle", "Ação de melhoria", "Base", "Responsável pela execução", "Prazo (conclusão)", "Situação atual"];
 
   return (
     <>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <Chips options={anos} selected={[ano]} onToggle={(a) => setAno(a)} />
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={tipoF} onChange={(e) => setTipoF(e.target.value as "" | TipoPlano)} aria-label="Filtrar por tipo de plano">
+          <option value="">Tipo: todos</option>
+          {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+        </select>
         <select className="select" style={{ width: "auto", minWidth: 150 }} value={base} onChange={(e) => setBase(e.target.value)} aria-label="Filtrar por base">
           <option value="">Base: todas</option>
           {BASES.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -493,7 +505,7 @@ export default function Plano() {
           </div>
           {linhas.length ? (
             <div className="table-wrap table-scroll" style={{ maxHeight: "70vh" }}>
-              <table className="plano-tabela" style={{ minWidth: 1180 }}>
+              <table className="plano-tabela" style={{ minWidth: 1290 }}>
                 <thead>
                   <tr>
                     {colunas.map((t) => <th key={t}>{t}</th>)}
@@ -510,6 +522,11 @@ export default function Plano() {
                         {admin ? (
                           <>
                             <td><input className="input" type="date" value={valor(a, "dataEvento")} onChange={(e) => editar(a, { dataEvento: e.target.value })} style={{ width: 128 }} aria-label="Data do evento" />{marca(x, i)}</td>
+                            <td>
+                              <select className="select" value={tipoDe({ tipo: valor(a, "tipo") })} onChange={(e) => editar(a, { tipo: e.target.value as TipoPlano })} style={{ width: 108 }} aria-label="Tipo do plano">
+                                {TIPOS_PLANO.map((t) => <option key={t} value={t}>{ROTULO_TIPO[t]}</option>)}
+                              </select>
+                            </td>
                             <td><input className="input" value={valor(a, "nome")} onChange={(e) => editar(a, { nome: e.target.value })} style={{ width: 150 }} aria-label="Nome" /></td>
                             <td><input className="input" list="plano-areas" value={valor(a, "area")} onChange={(e) => editar(a, { area: e.target.value })} style={{ width: 140 }} aria-label="Áreas de controle" /></td>
                             <td><textarea className="input" rows={3} value={valor(a, "acao")} onChange={(e) => editar(a, { acao: e.target.value })} style={{ width: 250, resize: "vertical" }} aria-label="Ação de melhoria" /></td>
@@ -537,7 +554,7 @@ export default function Plano() {
                                   <button className="btn" onClick={() => salvar([montar(a, { situacao: "EM ANDAMENTO" })], "Ação reaberta")} title="Reabrir a ação"><RotateCcw size={14} /> Reabrir</button>
                                 )}
                                 <button className={`btn ${m ? "primary" : ""}`} disabled={!m || !completa(montar(a))} title={m && !completa(montar(a)) ? `Faltam: ${faltando(montar(a)).join(", ")}` : undefined} onClick={() => salvar([montar(a)], "Ação salva")}>Salvar</button>
-                                <button className="btn" onClick={() => abrirNova({ registroId: a.registroId ?? x.s?.id ?? null, dataEvento: a.dataEvento, nome: a.nome, base: a.base })} title="Cadastrar outra ação para este sinistro"><Plus size={14} /> Nova ação</button>
+                                <button className="btn" onClick={() => abrirNova({ registroId: a.registroId ?? x.s?.id ?? null, dataEvento: a.dataEvento, nome: a.nome, base: a.base, tipo: tipoDe(a) })} title="Cadastrar outra ação para este sinistro"><Plus size={14} /> Nova ação</button>
                                 <button className="btn" onClick={() => excluir(a)} title="Excluir a ação"><Trash2 size={14} /> Excluir</button>
                               </div>
                             </td>
@@ -546,6 +563,7 @@ export default function Plano() {
                           <>
                             <td>{fmtData(a.dataEvento)}{marca(x, i)}</td>
                             <td><b>{a.nome}</b></td>
+                            <td>{ROTULO_TIPO[tipoDe(a)]}</td>
                             <td>{a.area}</td>
                             <td style={{ minWidth: 300, whiteSpace: "normal" }}>{a.acao}</td>
                             <td>{a.base}</td>

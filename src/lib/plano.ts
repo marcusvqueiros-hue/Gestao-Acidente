@@ -1,4 +1,4 @@
-import type { AcaoPlano, Registro, SituacaoAcao } from "../types";
+import type { AcaoPlano, Registro, SituacaoAcao, TipoPlano } from "../types";
 import { normNome } from "./colaboradores";
 
 export const SITUACOES: SituacaoAcao[] = ["CONCLUIDO", "EM ANDAMENTO", "PENDENTE", "ATRASADO"];
@@ -17,6 +17,10 @@ export const CAMPOS_OBRIGATORIOS: { id: "nome" | "area" | "acao" | "base" | "res
 
 export const faltando = (a: AcaoPlano): string[] => CAMPOS_OBRIGATORIOS.filter((c) => !String(a[c.id] ?? "").trim()).map((c) => c.rotulo);
 export const completa = (a: AcaoPlano) => faltando(a).length === 0;
+
+export const TIPOS_PLANO: TipoPlano[] = ["RIAI", "QUADRANTE"];
+export const ROTULO_TIPO: Record<TipoPlano, string> = { RIAI: "RIAI", QUADRANTE: "Quadrante" };
+export const tipoDe = (a: Pick<AcaoPlano, "tipo">): TipoPlano => (a.tipo === "QUADRANTE" ? "QUADRANTE" : "RIAI");
 
 export const hojeISO = () => {
   const d = new Date();
@@ -90,7 +94,7 @@ export function lerPlanilha(grade: unknown[][], ssf: SSF): { acoes: AcaoPlano[];
   const col = (prefixo: string) => grade[cab].findIndex((c) => chave(c).startsWith(prefixo));
   const i = {
     data: col("DATADOEVENTO"), nome: col("NOME"), area: col("AREAS"), acao: col("ACAO"), base: col("BASE"),
-    resp: col("RESPONSAVEL"), prazo: col("DATAPREVISTA"), sit: col("SITUACAO"),
+    resp: col("RESPONSAVEL"), prazo: col("DATAPREVISTA"), sit: col("SITUACAO"), tipo: col("TIPO"),
   };
   const acoes: AcaoPlano[] = [];
   let ignoradas = 0;
@@ -115,6 +119,7 @@ export function lerPlanilha(grade: unknown[][], ssf: SSF): { acoes: AcaoPlano[];
       responsavel: espacos(l[i.resp]),
       prazo,
       situacao,
+      tipo: i.tipo >= 0 && chave(l[i.tipo]).startsWith("QUADRANTE") ? "QUADRANTE" : "RIAI",
       concluidoEm: situacao === "CONCLUIDO" ? prazo : null,
     });
   });

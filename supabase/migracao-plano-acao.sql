@@ -17,6 +17,11 @@ create table if not exists public.plano_acoes (
   atualizado_em timestamptz not null default now()
 );
 
+-- Tipo do plano: RIAI (todos os já existentes) ou QUADRANTE. Pode rodar de novo sem problema.
+alter table public.plano_acoes add column if not exists tipo text not null default 'RIAI';
+alter table public.plano_acoes drop constraint if exists plano_acoes_tipo_check;
+alter table public.plano_acoes add constraint plano_acoes_tipo_check check (tipo in ('RIAI', 'QUADRANTE'));
+
 alter table public.plano_acoes enable row level security;
 
 drop policy if exists plano_acoes_ler on public.plano_acoes;

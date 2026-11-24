@@ -121,6 +121,9 @@ export interface NdgsMes {
   valor?: number | null;
 }
 
+/** RIAI (relatório de investigação) ou Quadrante: tipo do plano de ação. */
+export type TipoPlano = "RIAI" | "QUADRANTE";
+
 export type SituacaoAcao = "CONCLUIDO" | "EM ANDAMENTO" | "PENDENTE" | "ATRASADO";
 
 /** Ação de melhoria do plano de ação de um sinistro (planilha "Plano de Ação"). */
@@ -135,6 +138,7 @@ export interface AcaoPlano {
   responsavel: string;
   prazo?: string | null; // data prevista de conclusão, AAAA-MM-DD
   situacao: SituacaoAcao;
+  tipo?: TipoPlano; // sem valor = RIAI
   concluidoEm?: string | null; // AAAA-MM-DD
 }
 
