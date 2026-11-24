@@ -165,3 +165,19 @@ tbody tr:hover td { background: color-mix(in srgb, var(--brand-soft) 55%, transp
 .reco { padding: 14px 16px; border-radius: 14px; background: color-mix(in srgb, var(--bg) 60%, var(--surface)); border: 1px solid var(--line); }
 .reco b { display: block; margin-bottom: 6px; }
 .reco p { margin: 0; color: var(--ink2); line-height: 1.5; font-size: 13px; }
+
+/* ===== ícone "i" de ajuda ===== */
+.info-btn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--muted); cursor: help; vertical-align: middle; margin-left: 6px; transition: color 0.15s, background 0.15s, transform 0.15s; flex: none; }
+.info-btn:hover, .info-btn.on { color: var(--brand); background: var(--brand-soft); transform: scale(1.08); }
+.info-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.info-pop { position: fixed; z-index: 200; width: min(340px, calc(100vw - 24px)); padding: 14px 16px; border-radius: 14px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 10px; animation: sobe 0.2s var(--ease) both; font-size: 13px; line-height: 1.5; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.info-pop > b { font-size: 14px; letter-spacing: -0.01em; }
+.info-pop small { display: block; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: var(--brand); margin-bottom: 2px; }
+.info-pop p { margin: 0; color: var(--ink2); }
+.kpi-rot, .extra-info { display: inline-flex; align-items: center; gap: 2px; }
+.insight-hero small .info-btn { color: rgb(255 255 255 / 0.85); }
+.insight-hero small .info-btn:hover, .insight-hero small .info-btn.on { color: #fff; background: rgb(255 255 255 / 0.2); }
+.insight { padding-right: 46px; }
+.insight-info { position: absolute; right: 12px; top: 14px; }
+.insight-info .info-btn { margin: 0; }
+.insight-seta { display: none; }
