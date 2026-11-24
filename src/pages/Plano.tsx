@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, FileUp, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Download, FileUp, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useData } from "../lib/store";
 import { useAuth } from "../lib/auth";
 import { useTheme } from "../lib/theme";
@@ -258,6 +258,42 @@ export default function Plano() {
     setToast(e ?? "Ação excluída");
   }
 
+  /** Exporta para Excel o que está na tela: ações do plano (com os filtros ativos) e sinistros sem plano completo. */
+  async function exportar() {
+    const X = await import("xlsx");
+    const dt = (iso?: string | null) => (iso ? fmtData(iso) : "");
+    const plano = linhas.map((x) => ({
+      "DATA DO EVENTO": dt(x.a.dataEvento),
+      NOME: x.a.nome,
+      "ÁREAS DE CONTROLE": x.a.area,
+      "AÇÃO DE MELHORIAS": x.a.acao,
+      BASE: x.a.base,
+      "RESPONSÁVEL PELA EXECUÇÃO": x.a.responsavel,
+      "DATA PREVISTA DE EXECUÇÃO (Conclusão)": dt(x.a.prazo),
+      "SITUAÇÃO ATUAL": x.sit,
+      "DATA DE CONCLUSÃO": dt(x.a.concluidoEm),
+    }));
+    const sem = semFiltrados.map((l) => ({
+      "DATA DO EVENTO": dt(dataDe(l)),
+      NOME: nomeDe(l),
+      PREFIXO: l.s?.prefixo ?? "",
+      GERÊNCIA: l.s?.processo ?? "",
+      BASE: baseDe(l),
+      CARACTERÍSTICA: l.s?.caracteristica || l.s?.tipo || "",
+      "SITUAÇÃO DO PLANO": l.rasc ? `INCOMPLETO (faltam: ${faltando(l.rasc).join(", ")})` : "SEM PLANO",
+    }));
+    const wb = X.utils.book_new();
+    const folha = (linhasXls: Record<string, string>[], larguras: number[]) => {
+      const ws = X.utils.json_to_sheet(linhasXls);
+      ws["!cols"] = larguras.map((wch) => ({ wch }));
+      return ws;
+    };
+    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 30, 70, 8, 34, 20, 16, 16]), "Plano de Ação");
+    X.utils.book_append_sheet(wb, folha(sem, [14, 34, 16, 12, 8, 50, 44]), "Sinistros sem plano");
+    X.writeFile(wb, `plano-de-acao-${ano}.xlsx`);
+    setToast(`Planilha exportada: ${plano.length} ação(ões) e ${sem.length} sinistro(s) sem plano`);
+  }
+
   async function importar(f: File) {
     setOcupado(true);
     setLote("Lendo a planilha…");
@@ -293,6 +329,7 @@ export default function Plano() {
           {BASES.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
         <div className="grow" />
+        <button className="btn" onClick={exportar} disabled={!linhas.length && !semFiltrados.length}><Download size={15} /> Exportar Excel</button>
         {admin && (
           <>
             <input ref={arquivo} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = ""; }} />
