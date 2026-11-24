@@ -88,7 +88,7 @@ export interface Analise {
   resumo: string[];
 }
 
-export function analisar(d: Dataset, ano: number, hojeIso = hojeISO()): Analise {
+export function analisar(d: Dataset, ano: number, hojeIso = hojeISO(), opts: { taxas?: boolean } = {}): Analise {
   const todos = d.registros.filter((r) => r.categoria === "acidente");
   const regs = todos.filter((r) => r.data.startsWith(String(ano)));
   const ultimo = regs.reduce((m, r) => (r.data > m ? r.data : m), "");
@@ -325,6 +325,7 @@ export function analisar(d: Dataset, ano: number, hojeIso = hojeISO()): Analise 
 
   /* ---------- Taxas ---------- */
   try {
+    if (opts.taxas === false) throw new Error("taxas são do grupo todo");
     const serie = serieTaxas(d, ano, true).filter((t) => t.tfca != null || t.tf != null);
     const u = serie[serie.length - 1];
     if (u && u.origem === "calculada") {

@@ -4,7 +4,10 @@ import { AlertOctagon, AlertTriangle, CheckCircle2, Lightbulb, Target } from "lu
 import { useData } from "../lib/store";
 import { useTheme } from "../lib/theme";
 import { Card, ChartTip, Chips, Empty } from "../components/ui";
-import { MESES } from "../types";
+import { BASES, MESES } from "../types";
+import { coordenadorDe, listaCoordenadores, SEM_COORDENADOR } from "../lib/coordenacao";
+import { sinistroDa } from "../lib/plano";
+import { X } from "lucide-react";
 import { COR_NIVEL, RECOMENDACAO, ROTULO_NIVEL, analisar, type Insight, type Nivel } from "../lib/insights";
 import { Grad } from "./Dashboard";
 import Info, { type Ajuda } from "../components/Info";
@@ -135,7 +138,28 @@ export default function Insights() {
   const [ano, setAno] = useState(() => new Date().getFullYear());
   const [nivel, setNivel] = useState<Nivel | "todos">("todos");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
-  const a = useMemo(() => analisar(data, ano), [data, ano]);
+  const [base, setBase] = useState("");
+  const [ger, setGer] = useState("");
+  const [coord, setCoord] = useState("");
+  const filtrando = !!(base || ger || coord);
+  const doAno = useMemo(() => data.registros.filter((r) => r.categoria === "acidente" && (r.data.startsWith(String(ano)) || r.data.startsWith(String(ano - 1)))), [data.registros, ano]);
+  const opcoes = useMemo(() => {
+    const usados = new Set(doAno.map((r) => coordenadorDe(r)));
+    return {
+      bases: BASES.filter((b) => doAno.some((r) => r.base === b)),
+      gers: [...new Set(doAno.map((r) => r.processo).filter(Boolean))].sort(),
+      coords: [...listaCoordenadores().filter((c) => usados.has(c)), ...(usados.has(SEM_COORDENADOR) ? [SEM_COORDENADOR] : [])],
+    };
+  }, [doAno]);
+  // aplica os filtros aos sinistros e às ações ligadas a eles; as taxas são do grupo todo e saem da análise quando há filtro
+  const dados = useMemo(() => {
+    if (!filtrando) return data;
+    const regs = data.registros.filter((r) => r.categoria !== "acidente" || ((!base || r.base === base) && (!ger || r.processo === ger) && (!coord || coordenadorDe(r) === coord)));
+    const acidentes = regs.filter((r) => r.categoria === "acidente");
+    const acoes = (data.acoes ?? []).filter((x) => !!sinistroDa(x, acidentes));
+    return { ...data, registros: regs, acoes };
+  }, [data, filtrando, base, ger, coord]);
+  const a = useMemo(() => analisar(dados, ano, undefined, { taxas: !filtrando }), [dados, ano, filtrando]);
   const visiveis = a.insights.filter((i) => nivel === "todos" || i.nivel === nivel);
   const cont = (n: Nivel) => a.insights.filter((i) => i.nivel === n).length;
   const alterna = (id: string) => setAbertos((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -147,6 +171,19 @@ export default function Insights() {
     <>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
         <Chips options={anos} selected={[ano]} onToggle={(v) => setAno(v)} />
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={base} onChange={(e) => setBase(e.target.value)} aria-label="Filtrar por base">
+          <option value="">Base: todas</option>
+          {opcoes.bases.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <select className="select" style={{ width: "auto", minWidth: 160 }} value={ger} onChange={(e) => setGer(e.target.value)} aria-label="Filtrar por gerência">
+          <option value="">Gerência: todas</option>
+          {opcoes.gers.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <select className="select" style={{ width: "auto", minWidth: 180 }} value={coord} onChange={(e) => setCoord(e.target.value)} aria-label="Filtrar por coordenador">
+          <option value="">Coordenador: todos</option>
+          {opcoes.coords.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {filtrando && <button className="btn" onClick={() => { setBase(""); setGer(""); setCoord(""); }}><X size={14} /> Limpar filtros</button>}
         <div className="grow" />
         <button className="btn" onClick={() => setAbertos(abertos.size ? new Set() : new Set(visiveis.map((i) => i.id)))}>{abertos.size ? "Recolher todos" : "Expandir todos"}</button>
       </div>
@@ -154,7 +191,7 @@ export default function Insights() {
       <section className="insight-hero">
         <div className="insight-hero-ico"><Lightbulb size={26} /></div>
         <div>
-          <small>Resumo executivo · {ano} <Info titulo="Resumo executivo" ajuda={AJUDA.resumo} /></small>
+          <small>Resumo executivo · {ano}{filtrando ? ` · ${[base && "base " + base, ger && "gerência " + ger, coord && "coordenador " + coord].filter(Boolean).join(" · ")}` : ""} <Info titulo="Resumo executivo" ajuda={AJUDA.resumo} /></small>
           <h2>Onde agir para reduzir sinistros por gravidade e tipologia</h2>
           <ul>{a.resumo.map((t) => <li key={t}>{t}</li>)}</ul>
         </div>
