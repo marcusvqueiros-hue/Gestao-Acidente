@@ -310,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: sessao?.user ?? null,
       perfil: sessao?.perfil ?? null,
       admin: sessao?.perfil === "admin",
-      registra: sessao?.perfil === "admin" || sessao?.perfil === "registrador",
+      registra: sessao?.perfil === "admin", // só administradores alteram dados (o perfil registrador deixou de gravar)
       carregando,
       nuvem,
       login,

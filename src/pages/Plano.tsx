@@ -773,7 +773,7 @@ export default function Plano() {
         </Card>
         </div>
       </div>
-      {form && <FormAcao key={form.acao.id} inicial={form.acao} coordPadrao={coordDoSinistro(sinistroDa(form.acao, sinistros))} coordenadores={listaCoordenadores()} novo={form.novo} existente={form.existente} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => (form.existente ? excluir(form.acao) : descartar(form.acao))} onFechar={() => setForm(null)} />}
+      {form && admin && <FormAcao key={form.acao.id} inicial={form.acao} coordPadrao={coordDoSinistro(sinistroDa(form.acao, sinistros))} coordenadores={listaCoordenadores()} novo={form.novo} existente={form.existente} areas={areas} onSalvar={incluir} onExcluir={form.novo ? undefined : () => (form.existente ? excluir(form.acao) : descartar(form.acao))} onFechar={() => setForm(null)} />}
       {toast && <Toast msg={toast} onDone={() => setToast("")} />}
     </>
   );
