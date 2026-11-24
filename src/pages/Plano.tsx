@@ -182,6 +182,8 @@ export default function Plano() {
   }, [acoes]);
 
   const [base, setBase] = useState("");
+  const [gerF, setGerF] = useState("");
+  const gerDe = (sin?: Registro) => sin?.processo || "Sem gerência";
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [toast, setToast] = useState("");
   const [lote, setLote] = useState("");
@@ -219,12 +221,13 @@ export default function Plano() {
   }, [ligadasTodas, doAno, sinistros]);
 
   // cartões e rosca seguem a base escolhida; o gráfico por base segue a situação escolhida
-  const ligBase = useMemo(() => ligadas.filter((x) => !base || x.a.base === base), [ligadas, base]);
-  const ligSit = useMemo(() => ligadas.filter((x) => filtro === "todas" || x.sit === filtro), [ligadas, filtro]);
+  const ligBase = useMemo(() => ligadas.filter((x) => (!base || x.a.base === base) && (!gerF || gerDe(x.s) === gerF)), [ligadas, base, gerF]);
+  const ligSit = useMemo(() => ligadas.filter((x) => (filtro === "todas" || x.sit === filtro) && (!gerF || gerDe(x.s) === gerF)), [ligadas, filtro, gerF]);
+  const ligGer = useMemo(() => ligadas.filter((x) => (filtro === "todas" || x.sit === filtro) && (!base || x.a.base === base)), [ligadas, filtro, base]);
   const baseDe = (l: SemLinha) => l.s?.base ?? l.rasc?.base ?? "";
   const dataDe = (l: SemLinha) => l.s?.data ?? l.rasc?.dataEvento ?? "";
   const nomeDe = (l: SemLinha) => l.s?.colaborador ?? l.rasc?.nome ?? "";
-  const semBase = useMemo(() => semPlano.filter((l) => (!base || baseDe(l) === base) && (!coordF || coordDoSinistro(l.s) === coordF)), [semPlano, base, coordF]);
+  const semBase = useMemo(() => semPlano.filter((l) => (!base || baseDe(l) === base) && (!coordF || coordDoSinistro(l.s) === coordF) && (!gerF || gerDe(l.s) === gerF)), [semPlano, base, coordF, gerF]);
   const cont = (sit: SituacaoAcao) => ligBase.filter((x) => x.sit === sit).length;
   const total = ligBase.length;
   const concluidas = cont("CONCLUIDO");
@@ -242,6 +245,17 @@ export default function Plano() {
       .filter((d) => (d.total as number) > 0)
       .sort((a, b) => (b.total as number) - (a.total as number) || String(a.base).localeCompare(String(b.base)));
   }, [ligadas, ligSit]);
+  const porGer = useMemo(() => {
+    const nomes = [...new Set(ligadas.map((x) => gerDe(x.s)))];
+    return nomes
+      .map((g) => {
+        const por = Object.fromEntries(SITUACOES.map((st) => [st, ligGer.filter((x) => gerDe(x.s) === g && x.sit === st).length])) as Record<SituacaoAcao, number>;
+        return { ger: g, ...por, total: SITUACOES.reduce((t, st) => t + por[st], 0), topo: 0.001 } as Record<string, number | string>;
+      })
+      .filter((d) => (d.total as number) > 0)
+      .sort((a, b) => (b.total as number) - (a.total as number) || String(a.ger).localeCompare(String(b.ger)));
+  }, [ligadas, ligGer]);
+  const gerencias = useMemo(() => [...new Set([...ligadas.map((x) => gerDe(x.s)), ...sinistros.map((sn) => gerDe(sn))])].sort(), [ligadas, sinistros]);
 
   const [busca, setBusca] = useState("");
   const chaveSinistro = (a: AcaoPlano, s?: Registro) => s?.id ?? `${a.dataEvento}|${a.nome}`;
@@ -255,7 +269,7 @@ export default function Plano() {
   const linhas = useMemo<Linha[]>(() => {
     const t = semAcento(busca.trim());
     const filtradas = ligadas
-      .filter((x) => (!base || x.a.base === base) && (filtro === "todas" || x.sit === filtro))
+      .filter((x) => (!base || x.a.base === base) && (!gerF || gerDe(x.s) === gerF) && (filtro === "todas" || x.sit === filtro))
       .filter((x) => !t || semAcento([x.a.nome, x.a.responsavel].join(" ")).includes(t));
     const valor = (x: Linha, col: string): string | number => {
       switch (col) {
@@ -271,7 +285,7 @@ export default function Plano() {
       }
     };
     return ordenar(filtradas, ordem, valor);
-  }, [ligadas, base, filtro, busca, ordem]);
+  }, [ligadas, base, gerF, filtro, busca, ordem]);
 
   // sinistros sem plano de ação: tabela própria, com filtros próprios
   const [sBase, setSBase] = useState("");
@@ -281,7 +295,7 @@ export default function Plano() {
   const semFiltrados = useMemo(() => {
     const t = sBusca.trim().toLowerCase();
     const filtradas = semPlano
-      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes) && (!coordF || coordDoSinistro(l.s) === coordF))
+      .filter((l) => (!(sBase || base) || baseDe(l) === (sBase || base)) && (!sMes || dataDe(l).slice(5, 7) === sMes) && (!coordF || coordDoSinistro(l.s) === coordF) && (!gerF || gerDe(l.s) === gerF))
       .filter((l) => !t || [nomeDe(l), l.s?.prefixo, l.s?.caracteristica, l.s?.tipo, l.s?.processo, l.rasc?.acao].join(" ").toLowerCase().includes(t));
     const valor = (l: SemLinha, col: string): string | number => {
       switch (col) {
@@ -294,7 +308,7 @@ export default function Plano() {
       }
     };
     return ordenar(filtradas, ordemSem, valor);
-  }, [semPlano, sBase, base, sMes, sBusca, ordemSem, coordF]);
+  }, [semPlano, sBase, base, sMes, sBusca, ordemSem, coordF, gerF]);
   const mesesSem = useMemo(() => [...new Set(semPlano.map((l) => dataDe(l).slice(5, 7)))].filter(Boolean).sort(), [semPlano]);
 
   // formulário do plano (nova ação ou preenchimento de um plano incompleto)
@@ -362,6 +376,7 @@ export default function Plano() {
       "ÁREAS DE CONTROLE": x.a.area,
       "AÇÃO DE MELHORIAS": x.a.acao,
       BASE: x.a.base,
+      GERÊNCIA: x.s?.processo ?? "",
       COORDENADOR: coordDoSinistro(x.s),
       "RESPONSÁVEL PELA EXECUÇÃO": x.a.responsavel,
       "DATA PREVISTA DE EXECUÇÃO (Conclusão)": dt(x.a.prazo),
@@ -383,7 +398,7 @@ export default function Plano() {
       ws["!cols"] = larguras.map((wch) => ({ wch }));
       return ws;
     };
-    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 12, 30, 70, 8, 16, 34, 20, 16, 16]), "Plano de Ação");
+    X.utils.book_append_sheet(wb, folha(plano, [14, 34, 12, 30, 70, 8, 12, 16, 34, 20, 16, 16]), "Plano de Ação");
     X.utils.book_append_sheet(wb, folha(sem, [14, 34, 16, 12, 8, 50, 44]), "Sinistros sem plano");
     X.writeFile(wb, `plano-de-acao-${ano}.xlsx`);
     setToast(`Planilha exportada: ${plano.length} ação(ões) e ${sem.length} sinistro(s) sem plano`);
@@ -426,6 +441,10 @@ export default function Plano() {
           <option value="">Coordenador: todos</option>
           {coordenadores.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <select className="select" style={{ width: "auto", minWidth: 150 }} value={gerF} onChange={(e) => setGerF(e.target.value)} aria-label="Filtrar por gerência">
+          <option value="">Gerência: todas</option>
+          {gerencias.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
         <select className="select" style={{ width: "auto", minWidth: 150 }} value={base} onChange={(e) => setBase(e.target.value)} aria-label="Filtrar por base">
           <option value="">Base: todas</option>
           {BASES.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -443,7 +462,7 @@ export default function Plano() {
 
       <div className="ndgs-kpis">
         {([
-          { id: "todas", rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: base ? `base ${base}` : "todas as bases" },
+          { id: "todas", rotulo: "Ações no plano", v: total, cor: "var(--line)", sub: [base && `base ${base}`, gerF].filter(Boolean).join(" · ") || "todas as bases" },
           { id: "CONCLUIDO", rotulo: "Concluídas", v: concluidas, cor: COR_SIT.CONCLUIDO, sub: `${pctConcl}% do total` },
           { id: "EM ANDAMENTO", rotulo: "Em andamento", v: cont("EM ANDAMENTO"), cor: COR_SIT["EM ANDAMENTO"], sub: "dentro do prazo" },
           { id: "PENDENTE", rotulo: "Pendentes", v: cont("PENDENTE"), cor: COR_SIT.PENDENTE, sub: "ainda não iniciadas" },
@@ -527,6 +546,52 @@ export default function Plano() {
                   {SITUACOES.map((s) => (
                     <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false} style={{ cursor: "pointer" }} onClick={(d: any) => setBase((b) => (b === d?.base ? "" : d?.base))}>
                       {porBase.map((d) => <Cell key={String(d.base)} fill={COR_SIT[s]} fillOpacity={base && base !== d.base ? 0.3 : 1} />)}
+                      <LabelList dataKey={s} position="center" formatter={(v: unknown) => (Number(v) ? String(v) : "")} fill="#1d1a1f" fontSize={11} fontWeight={700} />
+                    </Bar>
+                  ))}
+                  <Bar dataKey="topo" stackId="p" fill="transparent" isAnimationActive={false} legendType="none" tooltipType="none">
+                    <LabelList dataKey="total" position="top" offset={6} fill={c.text} fontSize={13} fontWeight={700} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="legend plano-legenda">
+              {SITUACOES.map((s) => (
+                <button key={s} type="button" className={`leg-item ${filtro === s ? "on" : ""}`} style={{ opacity: filtro !== "todas" && filtro !== s ? 0.45 : 1 }} onClick={() => alterarFiltro(s)}>
+                  <i style={{ background: COR_SIT[s] }} />
+                  {ROTULO_SIT[s]}
+                </button>
+              ))}
+            </div>
+            </>
+          ) : (
+            <Empty />
+          )}
+        </Card>
+
+        <Card title="Ações por gerência" className="s12">
+          {porGer.length ? (
+            <>
+            <div style={{ height: 240 }}>
+              <ResponsiveContainer>
+                <BarChart data={porGer} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke={c.grid} strokeDasharray="3 5" />
+                  <XAxis dataKey="ger" tick={axis} axisLine={false} tickLine={false} />
+                  <YAxis hide allowDecimals={false} domain={[0, (max: number) => Math.ceil(max * 1.18)]} />
+                  <Tooltip
+                    cursor={{ fill: c.cursor, radius: 8 }}
+                    wrapperStyle={{ zIndex: 20, pointerEvents: "none" }}
+                    content={(p: any) => {
+                      const row = p.payload?.[0]?.payload as Record<string, number | string> | undefined;
+                      if (!row) return null;
+                      const linhas = SITUACOES.filter((s) => (row[s] as number) > 0).map((s) => ({ cor: COR_SIT[s], nome: ROTULO_SIT[s], valor: String(row[s]) }));
+                      const conc = Math.round(((row.CONCLUIDO as number) / ((row.total as number) || 1)) * 100);
+                      return <Dica active={p.active} titulo={`Gerência ${row.ger}`} linhas={linhas} rodape={`Total ${row.total} · ${conc}% concluído`} />;
+                    }}
+                  />
+                  {SITUACOES.map((s) => (
+                    <Bar key={s} dataKey={s} name={ROTULO_SIT[s]} stackId="p" fill={COR_SIT[s]} maxBarSize={46} isAnimationActive={false} style={{ cursor: "pointer" }} onClick={(d: any) => setGerF((g) => (g === d?.ger ? "" : d?.ger))}>
+                      {porGer.map((d) => <Cell key={String(d.ger)} fill={COR_SIT[s]} fillOpacity={gerF && gerF !== d.ger ? 0.3 : 1} />)}
                       <LabelList dataKey={s} position="center" formatter={(v: unknown) => (Number(v) ? String(v) : "")} fill="#1d1a1f" fontSize={11} fontWeight={700} />
                     </Bar>
                   ))}
